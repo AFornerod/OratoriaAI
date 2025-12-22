@@ -1,22 +1,21 @@
-// Mock temporal de storageService
-// TODO: Reemplazar con llamadas a API cuando tengamos backend
+// Temporary mock service - will be replaced with real implementations
 
 export const clearHistory = () => {
   console.log('clearHistory - pendiente implementar');
 };
 
 export const loginUser = (email: string, password: string) => {
-  console.log('loginUser - pendiente implementar');
+  console.log('loginUser - pendiente implementar', { email });
   return null;
 };
 
 export const registerUser = (data: any) => {
-  console.log('registerUser - pendiente implementar');
+  console.log('registerUser - pendiente implementar', data);
   return null;
 };
 
-export const deleteAccount = () => {
-  console.log('deleteAccount - pendiente implementar');
+export const deleteAccount = (userId?: string) => {
+  console.log('deleteAccount - pendiente implementar', userId);
 };
 
 export const logoutUser = () => {
@@ -34,5 +33,5 @@ export const getHistory = () => {
 };
 
 export const saveAnalysisToHistory = (result: any, topic: string, goal: string) => {
-  console.log('saveAnalysisToHistory - pendiente implementar');
+  console.log('saveAnalysisToHistory - pendiente implementar', { result, topic, goal });
 };
