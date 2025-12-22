@@ -180,4 +180,3 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onBack, language, onLog
 };
 
 export default ProfileView;
-

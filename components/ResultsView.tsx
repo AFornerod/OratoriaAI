@@ -549,4 +549,3 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, on
 };
 
 export default ResultsView;
-

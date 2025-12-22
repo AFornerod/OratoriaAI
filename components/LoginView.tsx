@@ -134,4 +134,3 @@ const LoginView: React.FC<LoginViewProps> = ({ onBack, language, onLoginSuccess 
 };
 
 export default LoginView;
-

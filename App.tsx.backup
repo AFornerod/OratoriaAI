@@ -1,20 +1,19 @@
-'use client'
 import React, { useState, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 import { Mic, BarChart3, Users, Play, Loader2, Smile, Zap, Globe, Crown, Clock, TrendingUp, Mic2, Shirt, LayoutTemplate, Target, FileText, Crosshair, History, User as UserIcon, LogOut, LogIn } from 'lucide-react';
 
 // Components
-import Recorder from '@/components/Recorder';
-import ResultsView from '@/components/ResultsView';
-import PremiumView from '@/components/PremiumView';
-import HistoryView from '@/components/HistoryView';
-import LoginView from '@/components/LoginView';
-import ProfileView from '@/components/ProfileView';
+import Recorder from './components/Recorder';
+import ResultsView from './components/ResultsView';
+import PremiumView from './components/PremiumView';
+import HistoryView from './components/HistoryView';
+import LoginView from './components/LoginView';
+import ProfileView from './components/ProfileView';
 
 // Services & Types
-import { analyzeVideo } from '@/lib/gemini/service';
-// TODO: Temporalmente comentadas hasta crear las APIs
-// import { saveAnalysisToHistory, getHistory, getCurrentSession, logoutUser } from '@/lib/api/client';
-import { AppState, AnalysisResult, Language, User } from '@/types';
+import { analyzeVideo } from './services/geminiService';
+import { saveAnalysisToHistory, getHistory, getCurrentSession, logoutUser } from './services/storageService';
+import { AppState, AnalysisResult, Language, User } from './types';
 
 // Helper to convert Blob to Base64
 const blobToBase64 = (blob: Blob): Promise<string> => {
@@ -31,7 +30,7 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
   });
 };
 
-export default function HomePage() {
+const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -51,13 +50,12 @@ export default function HomePage() {
 
   // Check session on load
   useEffect(() => {
-    // TODO: Implementar cuando tengamos NextAuth
-    // const session = getCurrentSession();
-    // if (session) {
-    //   setUser(session);
-    //   setIsPremium(session.isPremium);
-    //   setHistoryItems(getHistory());
-    // }
+    const session = getCurrentSession();
+    if (session) {
+      setUser(session);
+      setIsPremium(session.isPremium);
+      setHistoryItems(getHistory());
+    }
   }, []);
 
   // Translation Dictionary for Home Screen
@@ -168,21 +166,9 @@ export default function HomePage() {
     }
   }[language];
 
-const handleRecordingComplete = async (blob: Blob) => {
+  const handleRecordingComplete = async (blob: Blob) => {
     setAppState(AppState.PROCESSING);
     try {
-	// 🆕 VALIDAR tamaño del video
-      const sizeInMB = blob.size / (1024 * 1024);
-      if (sizeInMB > 15) {
-        setAppState(AppState.ERROR);
-        setErrorMsg(
-          language === 'es' 
-            ? 'Video muy grande. Por favor graba un video más corto (máximo 1 minuto).' 
-            : 'Video too large. Please record a shorter video (max 1 minute).'
-        );
-        return;
-      }
-
       // 1. Convert Blob to Base64
       const base64Video = await blobToBase64(blob);
       const mimeType = blob.type || 'video/webm';
@@ -190,16 +176,8 @@ const handleRecordingComplete = async (blob: Blob) => {
       // 2. Set State to Analyzing (UI Feedback)
       setAppState(AppState.ANALYZING);
 
-      // 3. Send to Gemini (ahora es server action)
-      const analysis = await analyzeVideo(
-        base64Video, 
-        mimeType, 
-        language, 
-        isPremium,  // Esto se pasará como parámetro
-        topic, 
-        audience, 
-        goal
-      );
+      // 3. Send to Gemini
+      const analysis = await analyzeVideo(base64Video, mimeType, language, isPremium, topic, audience, goal);
 
       // 4. Show Results
       setResult(analysis);
@@ -211,41 +189,10 @@ const handleRecordingComplete = async (blob: Blob) => {
     }
   };
 
-const handleSaveResult = async () => {
-    if (!result) return;
-    
-    try {
-      const response = await fetch('/api/save-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          analysis: result,
-          topic,
-          goal,
-          language,
-          tier: isPremium ? 'premium' : 'free'
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        alert(language === 'es' 
-          ? '✅ Análisis guardado correctamente' 
-          : '✅ Analysis saved successfully'
-        );
-      } else {
-        alert(language === 'es'
-          ? '❌ Error al guardar: ' + (data.error || 'Error desconocido')
-          : '❌ Error saving: ' + (data.error || 'Unknown error')
-        );
-      }
-    } catch (error) {
-      console.error('Error saving:', error);
-      alert(language === 'es'
-        ? '❌ Error al guardar el análisis'
-        : '❌ Error saving analysis'
-      );
+  const handleSaveResult = () => {
+    if (result) {
+      saveAnalysisToHistory(result, topic, goal);
+      setHistoryItems(getHistory()); // Update local state
     }
   };
 
@@ -261,42 +208,35 @@ const handleSaveResult = async () => {
 
   // Auth Handlers
   const handleSubscribeSuccess = () => {
-    // TODO: Implementar cuando tengamos Stripe
-    // const session = getCurrentSession();
-    // if (session) {
-    //   setUser(session);
-    //   setIsPremium(session.isPremium);
-    //   setAppState(AppState.IDLE);
-    // }
-    console.log('Subscribe success - pendiente implementar');
+    // Reload session data after registration/payment
+    const session = getCurrentSession();
+    if (session) {
+      setUser(session);
+      setIsPremium(session.isPremium);
+      setAppState(AppState.IDLE); // Or keep in premium view for a bit
+    }
   };
 
   const handleLoginSuccess = () => {
-    // TODO: Implementar cuando tengamos NextAuth
-    // const session = getCurrentSession();
-    // if (session) {
-    //   setUser(session);
-    //   setIsPremium(session.isPremium);
-    //   setHistoryItems(getHistory());
-    //   setAppState(AppState.IDLE);
-    // }
-    console.log('Login success - pendiente implementar');
+    const session = getCurrentSession();
+    if (session) {
+      setUser(session);
+      setIsPremium(session.isPremium);
+      setHistoryItems(getHistory()); // Load user specific history
+      setAppState(AppState.IDLE);
+    }
   };
 
   const handleLogout = () => {
-    // TODO: Implementar cuando tengamos NextAuth
-    // logoutUser();
+    logoutUser();
     setUser(null);
     setIsPremium(false);
-    setHistoryItems([]);
+    setHistoryItems(getHistory()); // Load anonymous history (or empty)
     setAppState(AppState.IDLE);
-    console.log('Logout - pendiente implementar');
   };
 
   const handleHistoryRefresh = () => {
-    // TODO: Implementar cuando tengamos API
-    // setHistoryItems(getHistory());
-    console.log('Refresh history - pendiente implementar');
+    setHistoryItems(getHistory());
   };
 
   const featureIcons = [
@@ -632,3 +572,4 @@ const handleSaveResult = async () => {
   );
 };
 
+export default App;

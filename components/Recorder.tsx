@@ -49,12 +49,12 @@ const Recorder: React.FC<RecorderProps> = ({ onRecordingComplete, language }) =>
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  const startCamera = async () => {
+const startCamera = async () => {
     try {
       setError(null);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 }, // Optimize for upload size
-        audio: true,
+        video: true,
+        audio: true
       });
       setStream(mediaStream);
       if (videoRef.current) {
@@ -186,4 +186,3 @@ const Recorder: React.FC<RecorderProps> = ({ onRecordingComplete, language }) =>
 };
 
 export default Recorder;
-

@@ -1,0 +1,8 @@
+{
+  "name": "Oratoria AI",
+  "description": "Entrenador personal de oratoria con IA. Analiza muletillas, ritmo, lenguaje corporal y emociones en tus presentaciones.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

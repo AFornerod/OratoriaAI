@@ -345,4 +345,3 @@ const PremiumView: React.FC<PremiumViewProps> = ({ onBack, language, onSubscribe
 };
 
 export default PremiumView;
-

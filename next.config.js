@@ -2,7 +2,7 @@
 const nextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: '100mb', // Permitir videos de hasta 10MB
+      bodySizeLimit: '20mb', // Permitir videos de hasta 20MB
     },
   },
 };
