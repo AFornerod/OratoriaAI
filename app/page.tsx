@@ -11,6 +11,7 @@ import PremiumView from '@/components/PremiumView';
 import HistoryView from '@/components/HistoryView';
 import LoginView from '@/components/LoginView';
 import ProfileView from '@/components/ProfileView';
+import PricingView from '@/components/PricingView';
 
 // Services & Types
 import { analyzeVideo } from '@/lib/gemini/service';
@@ -61,6 +62,24 @@ const [isViewingFromHistory, setIsViewingFromHistory] = useState(false);
     }
   }, [user]);
 
+// Refrescar sesión después del checkout exitoso
+useEffect(() => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const checkoutStatus = searchParams.get('checkout');
+  
+  if (checkoutStatus === 'success') {
+    console.log('✅ Checkout success detected, refreshing session...');
+    
+    // Esperar 2 segundos para que el webhook termine de actualizar la DB
+    setTimeout(async () => {
+      // Forzar refresco de sesión
+      await fetch('/api/auth/session?update=1');
+      
+      // Recargar página para actualizar el estado
+      window.location.href = '/';
+    }, 2000);
+  }
+}, []);
 
   // Translation Dictionary for Home Screen
   const t = {
@@ -329,81 +348,137 @@ const handleViewAnalysisFromHistory = (analysis: any) => {
       {/* Navigation / Header */}
       <nav className="border-b border-gray-800 bg-black/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={resetApp} role="button">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
-                 <Mic className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-xl tracking-tight">Oratoria<span className="text-purple-500">AI</span></span>
+<div className="flex items-center justify-between h-16">
+        {/* LEFT SIDE - Logo + Tier Badge/Upgrade */}
+        <div className="flex items-center gap-4">
+          {/* Logo */}
+          <div className="flex items-center gap-2 cursor-pointer" onClick={resetApp} role="button">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
+               <Mic className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={toggleLanguage}
-                className="flex items-center gap-2 text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                <Globe className="w-4 h-4" />
-                {language.toUpperCase()}
-              </button>
-              
-              {/* Premium / History / Login Logic */}
-              {isPremium ? (
-                <>
-                  <button 
-                    onClick={() => setAppState(AppState.HISTORY)}
-                    className="flex items-center gap-2 text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                  >
-                    <History className="w-4 h-4" />
-                    {t.navHistory}
-                  </button>
-                  <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border border-yellow-500/50 rounded-full">
-                    <Crown className="w-4 h-4 text-yellow-500" />
-                    <span className="text-yellow-500 text-sm font-bold">{t.navPremiumActive}</span>
-                  </div>
-                </>
-              ) : (
-                <button 
-                  onClick={() => setAppState(AppState.PREMIUM)}
-                  className="bg-white text-black px-4 py-2 rounded-md text-sm font-bold hover:bg-gray-200 transition-colors"
-                >
-                  {t.navPremium}
-                </button>
-              )}
-
-              {/* Login/User Logic */}
-              {user ? (
-                 <div className="flex items-center gap-4 border-l border-gray-700 pl-4 ml-2">
-                   <div 
-                    onClick={() => setAppState(AppState.PROFILE)}
-                    className="hidden md:flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                    role="button"
-                   >
-                     <div className="w-8 h-8 bg-purple-900 rounded-full flex items-center justify-center">
-                        <UserIcon className="w-4 h-4 text-purple-200" />
-                     </div>
-                     <span className="text-sm font-medium text-white">
-  {user.name ? user.name.split(' ')[0] : user.email?.split('@')[0] || 'Usuario'}
-</span>
-                   </div>
-                   <button 
-                    onClick={handleLogout}
-                    title={t.navLogout}
-                    className="text-gray-400 hover:text-red-400 transition-colors"
-                   >
-                     <LogOut className="w-5 h-5" />
-                   </button>
-                 </div>
-              ) : (
-                <button 
-                  onClick={() => setAppState(AppState.LOGIN)}
-                  className="flex items-center gap-2 text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors border border-gray-700 hover:border-gray-500"
-                >
-                  <LogIn className="w-4 h-4" />
-                  {t.navLogin}
-                </button>
-              )}
-
-            </div>
+            <span className="font-bold text-xl tracking-tight">Oratoria<span className="text-purple-500">AI</span></span>
           </div>
+
+          {/* Tier Badge + Upgrade Button Logic */}
+          {user && user.tier === 'free' && (
+            <button
+              onClick={() => setAppState(AppState.PRICING)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold rounded-lg transition-all shadow-lg shadow-yellow-500/30 animate-pulse"
+            >
+              <Crown className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {language === 'es' ? 'Upgrade' : 'Upgrade'}
+              </span>
+            </button>
+          )}
+
+          {user && user.tier === 'starter' && (
+            <>
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/50 rounded-lg">
+                <Crown className="w-4 h-4 text-blue-400" />
+                <span className="text-blue-400 text-sm font-bold uppercase">Starter</span>
+              </div>
+              <button
+                onClick={() => setAppState(AppState.PRICING)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {language === 'es' ? 'Ver Planes' : 'View Plans'}
+              </button>
+            </>
+          )}
+
+          {user && user.tier === 'pro' && (
+            <>
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/50 rounded-lg">
+                <Crown className="w-4 h-4 text-purple-400" />
+                <span className="text-purple-400 text-sm font-bold uppercase">Pro</span>
+              </div>
+              <button
+                onClick={() => setAppState(AppState.PRICING)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {language === 'es' ? 'Upgrade' : 'Upgrade'}
+              </button>
+            </>
+          )}
+
+          {user && user.tier === 'premium' && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg">
+              <Crown className="w-4 h-4 text-white" />
+              <span className="text-white text-sm font-bold uppercase">Premium ⭐</span>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT SIDE - Language, History, User */}
+        <div className="flex items-center gap-3">
+          {/* Language Toggle */}
+          <button 
+            onClick={toggleLanguage}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+          >
+            <Globe className="w-4 h-4" />
+            <span className="text-sm font-medium">{language.toUpperCase()}</span>
+          </button>
+
+          {/* Ver Planes (NO autenticado) */}
+          {!user && (
+            <button 
+              onClick={() => setAppState(AppState.PRICING)}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              {language === 'es' ? 'Ver Planes' : 'View Plans'}
+            </button>
+          )}
+
+          {/* History (Usuarios autenticados) */}
+          {user && (
+            <button 
+              onClick={() => setAppState(AppState.HISTORY)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              title={language === 'es' ? 'Ver Historial' : 'View History'}
+            >
+              <History className="w-4 h-4" />
+              <span className="hidden md:inline text-sm font-medium">
+                {language === 'es' ? 'Historial' : 'History'}
+              </span>
+            </button>
+          )}
+
+          {/* User Profile or Login */}
+          {user ? (
+            <div className="flex items-center gap-3 border-l border-gray-700 pl-3">
+              <div 
+                onClick={() => setAppState(AppState.PROFILE)}
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                role="button"
+              >
+                <div className="w-8 h-8 bg-purple-900 rounded-full flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-purple-200" />
+                </div>
+                <span className="hidden md:inline text-sm font-medium text-white">
+                  {user.name ? user.name.split(' ')[0] : user.email?.split('@')[0] || 'Usuario'}
+                </span>
+              </div>
+              <button 
+                onClick={handleLogout}
+                title={language === 'es' ? 'Cerrar Sesión' : 'Sign Out'}
+                className="text-gray-400 hover:text-red-400 transition-colors"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setAppState(AppState.LOGIN)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              <LogIn className="w-4 h-4" />
+              <span className="hidden sm:inline">{language === 'es' ? 'Iniciar Sesión' : 'Sign In'}</span>
+            </button>
+          )}
+        </div>
+      </div>
         </div>
       </nav>
 
@@ -610,6 +685,12 @@ const handleViewAnalysisFromHistory = (analysis: any) => {
              language={language}
           />
         )}
+{appState === AppState.PRICING && (
+  <PricingView 
+    onBack={resetApp}
+    language={language}
+  />
+)}
 
 {/* State: HISTORY */}
         {appState === AppState.HISTORY && (
