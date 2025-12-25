@@ -1,5 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import { SessionProvider } from 'next-auth/react';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { Mic, BarChart3, Users, Play, Loader2, Smile, Zap, Globe, Crown, Clock, TrendingUp, Mic2, Shirt, LayoutTemplate, Target, FileText, Crosshair, History, User as UserIcon, LogOut, LogIn } from 'lucide-react';
 
 // Components
@@ -31,15 +33,16 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
   });
 };
 
-export default function HomePage() {
+function HomePageContent() {
+  const { user, isLoading: authLoading, signOut } = useAuth();
+  
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [language, setLanguage] = useState<Language>('es');
   
-  // User & Auth State
-  const [user, setUser] = useState<User | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
+  // Derivar isPremium del usuario autenticado
+  const isPremium = user?.isPremium || false;
   
   // Premium specific inputs
   const [topic, setTopic] = useState('');
@@ -48,17 +51,16 @@ export default function HomePage() {
 
   // History State
   const [historyItems, setHistoryItems] = useState<any[]>([]);
+const [isViewingFromHistory, setIsViewingFromHistory] = useState(false);
 
-  // Check session on load
+  // TODO: Load history when user logs in
   useEffect(() => {
-    // TODO: Implementar cuando tengamos NextAuth
-    // const session = getCurrentSession();
-    // if (session) {
-    //   setUser(session);
-    //   setIsPremium(session.isPremium);
-    //   setHistoryItems(getHistory());
-    // }
-  }, []);
+    if (user) {
+      // Aquí cargaremos el historial del usuario
+      // loadUserHistory();
+    }
+  }, [user]);
+
 
   // Translation Dictionary for Home Screen
   const t = {
@@ -213,7 +215,6 @@ const handleRecordingComplete = async (blob: Blob) => {
 
 const handleSaveResult = async () => {
     if (!result) return;
-    
     try {
       const response = await fetch('/api/save-analysis', {
         method: 'POST',
@@ -223,7 +224,8 @@ const handleSaveResult = async () => {
           topic,
           goal,
           language,
-          tier: isPremium ? 'premium' : 'free'
+          tier: user?.tier || 'free',
+          userId: user?.id || null  // ← AGREGAR ESTO
         })
       });
 
@@ -249,10 +251,11 @@ const handleSaveResult = async () => {
     }
   };
 
-  const resetApp = () => {
+const resetApp = () => {
     setAppState(AppState.IDLE);
     setResult(null);
     setErrorMsg(null);
+    setIsViewingFromHistory(false);  // ← AGREGAR ESTO
   };
 
   const toggleLanguage = () => {
@@ -260,43 +263,49 @@ const handleSaveResult = async () => {
   };
 
   // Auth Handlers
-  const handleSubscribeSuccess = () => {
-    // TODO: Implementar cuando tengamos Stripe
-    // const session = getCurrentSession();
-    // if (session) {
-    //   setUser(session);
-    //   setIsPremium(session.isPremium);
-    //   setAppState(AppState.IDLE);
-    // }
-    console.log('Subscribe success - pendiente implementar');
+const handleSubscribeSuccess = () => {
+    // Después del registro exitoso, el usuario ya está logueado
+    setAppState(AppState.IDLE);
+    alert(language === 'es'
+      ? '¡Cuenta Premium activada! Ya puedes usar todas las funciones.'
+      : 'Premium account activated! You can now use all features.'
+    );
   };
 
-  const handleLoginSuccess = () => {
-    // TODO: Implementar cuando tengamos NextAuth
-    // const session = getCurrentSession();
-    // if (session) {
-    //   setUser(session);
-    //   setIsPremium(session.isPremium);
-    //   setHistoryItems(getHistory());
-    //   setAppState(AppState.IDLE);
-    // }
-    console.log('Login success - pendiente implementar');
+const handleLoginSuccess = () => {
+    // El usuario ya está en sesión gracias a NextAuth
+    setAppState(AppState.IDLE);
+    // Opcional: mostrar mensaje de bienvenida
+    alert(language === 'es' 
+      ? `¡Bienvenido ${user?.name || user?.email}!` 
+      : `Welcome ${user?.name || user?.email}!`
+    );
   };
 
-  const handleLogout = () => {
-    // TODO: Implementar cuando tengamos NextAuth
-    // logoutUser();
-    setUser(null);
-    setIsPremium(false);
+const handleLogout = async () => {
+    await signOut({ redirect: false });
     setHistoryItems([]);
     setAppState(AppState.IDLE);
-    console.log('Logout - pendiente implementar');
   };
 
-  const handleHistoryRefresh = () => {
+const handleHistoryRefresh = () => {
     // TODO: Implementar cuando tengamos API
     // setHistoryItems(getHistory());
-    console.log('Refresh history - pendiente implementar');
+  };
+
+const handleViewAnalysisFromHistory = (analysis: any) => {
+    // Reconstruct result from saved analysis
+    const reconstructedResult = {
+      overallScore: analysis.overall_score,
+      summary: analysis.summary,
+      ...analysis.analysis_data
+    };
+    
+    setResult(reconstructedResult);
+    setTopic(analysis.topic || '');
+    setGoal(analysis.goal || '');
+    setIsViewingFromHistory(true);  // ← AGREGAR ESTO
+    setAppState(AppState.RESULTS);
   };
 
   const featureIcons = [
@@ -371,7 +380,9 @@ const handleSaveResult = async () => {
                      <div className="w-8 h-8 bg-purple-900 rounded-full flex items-center justify-center">
                         <UserIcon className="w-4 h-4 text-purple-200" />
                      </div>
-                     <span className="text-sm font-medium text-white">{user.name.split(' ')[0]}</span>
+                     <span className="text-sm font-medium text-white">
+  {user.name ? user.name.split(' ')[0] : user.email?.split('@')[0] || 'Usuario'}
+</span>
                    </div>
                    <button 
                     onClick={handleLogout}
@@ -562,13 +573,14 @@ const handleSaveResult = async () => {
         )}
 
         {/* State: RESULTS */}
-        {appState === AppState.RESULTS && result && (
+{appState === AppState.RESULTS && result && (
           <ResultsView 
             result={result} 
             onReset={resetApp} 
             language={language} 
             onSave={handleSaveResult}
             isPremium={isPremium}
+            isFromHistory={isViewingFromHistory}  // ← AGREGAR ESTO
           />
         )}
 
@@ -590,23 +602,21 @@ const handleSaveResult = async () => {
           />
         )}
 
-        {/* State: PROFILE */}
-        {appState === AppState.PROFILE && user && (
+{/* State: PROFILE */}
+        {appState === AppState.PROFILE && (
           <ProfileView 
-             user={user}
              onBack={resetApp}
-             language={language}
              onLogout={handleLogout}
+             language={language}
           />
         )}
 
-        {/* State: HISTORY */}
+{/* State: HISTORY */}
         {appState === AppState.HISTORY && (
           <HistoryView 
-            history={historyItems} 
             onBack={resetApp} 
             language={language}
-            onRefresh={handleHistoryRefresh}
+            onViewAnalysis={handleViewAnalysisFromHistory}
           />
         )}
 
@@ -632,3 +642,11 @@ const handleSaveResult = async () => {
   );
 };
 
+// Wrapper con SessionProvider
+export default function HomePage() {
+  return (
+    <SessionProvider>
+      <HomePageContent />
+    </SessionProvider>
+  );
+}

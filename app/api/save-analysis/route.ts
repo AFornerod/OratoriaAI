@@ -4,14 +4,16 @@ import { supabaseAdmin } from '@/lib/supabase/server';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { analysis, topic, goal, language, tier = 'free' } = body;
+    const { analysis, topic, goal, language, tier = 'free', userId = null } = body;
+
 
     // Por ahora sin user_id (lo agregaremos con auth)
     // Guardamos análisis anónimo
+
     const { data, error } = await supabaseAdmin
       .from('analyses')
       .insert({
-        user_id: null, // Temporal - luego será el user ID real
+        user_id: userId, // Temporal - luego será el user ID real
         overall_score: analysis.overallScore,
         summary: analysis.summary,
         analysis_data: analysis, // Todo el objeto como JSONB

@@ -3,131 +3,165 @@
 import React, { useState } from 'react';
 import { ArrowLeft, LogIn, Lock, Mail, Loader2 } from 'lucide-react';
 import { Language } from '@/types';
-import { loginUser } from '@/lib/services/storageService';
+import { signIn } from 'next-auth/react';
 
 interface LoginViewProps {
   onBack: () => void;
-  language: Language;
   onLoginSuccess: () => void;
+  language: Language;
 }
 
-const LoginView: React.FC<LoginViewProps> = ({ onBack, language, onLoginSuccess }) => {
+const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, language }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const t = {
     es: {
       title: "Iniciar Sesión",
-      subtitle: "Accede a tu cuenta Premium y recupera tu historial.",
-      emailLabel: "Correo Electrónico",
-      passLabel: "Contraseña",
-      btn: "Ingresar",
+      email: "Correo Electrónico",
+      password: "Contraseña",
+      loginButton: "Iniciar Sesión",
+      noAccount: "¿No tienes cuenta?",
+      createAccount: "Crear una",
       back: "Volver",
-      error: "Credenciales inválidas o usuario no encontrado.",
-      placeholderEmail: "tu@email.com",
-      placeholderPass: "••••••••"
+      errorGeneric: "Error al iniciar sesión. Verifica tus credenciales.",
+      errorEmail: "Por favor ingresa un email válido",
+      errorPassword: "La contraseña debe tener al menos 6 caracteres",
     },
     en: {
-      title: "Log In",
-      subtitle: "Access your Premium account and retrieve your history.",
-      emailLabel: "Email Address",
-      passLabel: "Password",
-      btn: "Sign In",
+      title: "Sign In",
+      email: "Email",
+      password: "Password",
+      loginButton: "Sign In",
+      noAccount: "Don't have an account?",
+      createAccount: "Create one",
       back: "Back",
-      error: "Invalid credentials or user not found.",
-      placeholderEmail: "you@email.com",
-      placeholderPass: "••••••••"
+      errorGeneric: "Login error. Check your credentials.",
+      errorEmail: "Please enter a valid email",
+      errorPassword: "Password must be at least 6 characters",
     }
   }[language];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
+    setError('');
 
-    // Simulate network delay
-    setTimeout(() => {
-      try {
-        loginUser(email, password);
-        onLoginSuccess();
-      } catch (err) {
-        setError(t.error);
+    // Validations
+    if (!email || !email.includes('@')) {
+      setError(t.errorEmail);
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError(t.errorPassword);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError(t.errorGeneric);
         setIsLoading(false);
+        return;
       }
-    }, 1000);
+
+      // Success
+      onLoginSuccess();
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(t.errorGeneric);
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 animate-fade-in">
-      <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-8 shadow-2xl">
-        <button 
-          onClick={onBack} 
-          className="flex items-center gap-2 text-gray-500 hover:text-white mb-6 transition-colors text-sm"
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> {t.back}
+          <ArrowLeft className="w-5 h-5" />
+          {t.back}
         </button>
 
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <LogIn className="w-6 h-6 text-purple-500" />
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-2">{t.title}</h2>
-          <p className="text-gray-400 text-sm">{t.subtitle}</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t.emailLabel}</label>
-            <div className="relative">
-              <Mail className="absolute left-4 top-3.5 w-5 h-5 text-gray-500" />
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={t.placeholderEmail}
-                required
-                className="w-full bg-black border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all" 
-              />
+        <div className="bg-gray-900/50 backdrop-blur-xl p-8 rounded-2xl border border-gray-800 shadow-2xl">
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center">
+              <LogIn className="w-8 h-8 text-white" />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t.passLabel}</label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-3.5 w-5 h-5 text-gray-500" />
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t.placeholderPass}
-                required
-                className="w-full bg-black border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all" 
-              />
-            </div>
-          </div>
+          <h2 className="text-3xl font-bold text-white text-center mb-8">
+            {t.title}
+          </h2>
 
           {error && (
-            <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-sm text-center">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-200 text-sm">
               {error}
             </div>
           )}
 
-          <button 
-            type="submit" 
-            disabled={isLoading}
-            className="w-full py-4 bg-purple-600 text-white font-bold text-lg rounded-xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-900/20 flex items-center justify-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </>
-            ) : (
-              t.btn
-            )}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-gray-300 mb-2 text-sm font-medium">
+                {t.email}
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  placeholder="tu@email.com"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-300 mb-2 text-sm font-medium">
+                {t.password}
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {language === 'es' ? 'Iniciando...' : 'Signing in...'}
+                </>
+              ) : (
+                t.loginButton
+              )}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

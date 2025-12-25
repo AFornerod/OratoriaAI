@@ -1,179 +1,207 @@
 'use client'
 
 import React, { useState } from 'react';
-import { ArrowLeft, User, Mail, Calendar, CreditCard, LogOut, Trash2, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { Language, User as UserType } from '@/types';
-import { deleteAccount, logoutUser } from '@/lib/services/storageService';
+import { ArrowLeft, User as UserIcon, Crown, Mail, LogOut, Trash2, Shield } from 'lucide-react';
+import { Language } from '@/types';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 interface ProfileViewProps {
-  user: UserType;
   onBack: () => void;
-  language: Language;
   onLogout: () => void;
+  language: Language;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ user, onBack, language, onLogout }) => {
-  const [showConfirm, setShowConfirm] = useState(false);
+const ProfileView: React.FC<ProfileViewProps> = ({ onBack, onLogout, language }) => {
+  const { user } = useAuth();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const t = {
     es: {
       title: "Mi Perfil",
-      subtitle: "Gestiona tu cuenta y suscripción.",
-      details: "Detalles de la Cuenta",
-      memberSince: "Miembro desde",
-      subscription: "Suscripción",
-      plan: "Plan Premium",
-      active: "Activo",
-      price: "$9.99/mes",
-      nextBilling: "Próxima facturación: en 30 días",
-      cancelBtn: "Cancelar Suscripción",
       back: "Volver",
+      accountInfo: "Información de Cuenta",
+      name: "Nombre",
+      email: "Correo Electrónico",
+      tier: "Plan Actual",
+      memberSince: "Miembro desde",
+      actions: "Acciones",
       logout: "Cerrar Sesión",
-      confirmTitle: "¿Estás seguro?",
-      confirmDesc: "Al cancelar, perderás acceso a las funciones Premium y se eliminará tu cuenta de nuestra base de datos. Esta acción no se puede deshacer.",
-      confirmYes: "Sí, cancelar y eliminar cuenta",
-      confirmNo: "No, mantener mi plan",
-      paymentMethod: "Método de Pago",
-      card: "•••• •••• •••• 4242"
+      deleteAccount: "Eliminar Cuenta",
+      deleteConfirm: "¿Estás seguro de eliminar tu cuenta? Esta acción no se puede deshacer.",
+      cancel: "Cancelar",
+      confirmDelete: "Sí, Eliminar",
+      
+      tiers: {
+        free: "Gratis",
+        starter: "Starter",
+        pro: "Pro",
+        premium: "Premium"
+      }
     },
     en: {
       title: "My Profile",
-      subtitle: "Manage your account and subscription.",
-      details: "Account Details",
-      memberSince: "Member since",
-      subscription: "Subscription",
-      plan: "Premium Plan",
-      active: "Active",
-      price: "$9.99/month",
-      nextBilling: "Next billing: in 30 days",
-      cancelBtn: "Cancel Subscription",
       back: "Back",
-      logout: "Log Out",
-      confirmTitle: "Are you sure?",
-      confirmDesc: "By canceling, you will lose access to Premium features and your account will be deleted from our database. This action cannot be undone.",
-      confirmYes: "Yes, cancel and delete account",
-      confirmNo: "No, keep my plan",
-      paymentMethod: "Payment Method",
-      card: "•••• •••• •••• 4242"
+      accountInfo: "Account Information",
+      name: "Name",
+      email: "Email",
+      tier: "Current Plan",
+      memberSince: "Member since",
+      actions: "Actions",
+      logout: "Sign Out",
+      deleteAccount: "Delete Account",
+      deleteConfirm: "Are you sure you want to delete your account? This action cannot be undone.",
+      cancel: "Cancel",
+      confirmDelete: "Yes, Delete",
+      
+      tiers: {
+        free: "Free",
+        starter: "Starter",
+        pro: "Pro",
+        premium: "Premium"
+      }
     }
   }[language];
 
-  const handleCancelSubscription = () => {
-    deleteAccount(user.id);
-    onLogout(); // This will trigger the app reset in parent
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(language === 'es' ? 'es-ES' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
-  return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8 animate-fade-in">
-      <button onClick={onBack} className="flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors">
-        <ArrowLeft className="w-5 h-5" /> {t.back}
-      </button>
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case 'premium': return 'from-pink-600 to-purple-600';
+      case 'pro': return 'from-purple-600 to-indigo-600';
+      case 'starter': return 'from-blue-600 to-cyan-600';
+      default: return 'from-gray-600 to-gray-700';
+    }
+  };
 
-      <div className="flex flex-col md:flex-row gap-8 items-start">
-        
-        {/* User Card */}
-        <div className="w-full md:w-1/3 bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center shadow-lg">
-           <div className="w-24 h-24 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full mx-auto flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(147,51,234,0.3)]">
-              <span className="text-4xl font-bold text-white">{user.name.charAt(0).toUpperCase()}</span>
-           </div>
-           <h2 className="text-xl font-bold text-white mb-1">{user.name}</h2>
-           <p className="text-gray-400 text-sm mb-6">{user.email}</p>
-           
-           <button 
-             onClick={onLogout}
-             className="w-full py-2 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors flex items-center justify-center gap-2 text-sm font-medium"
-           >
-             <LogOut className="w-4 h-4" /> {t.logout}
-           </button>
+  const handleDeleteAccount = () => {
+    // TODO: Implement actual account deletion
+    setShowDeleteConfirm(false);
+  };
+
+  if (!user) {
+    return null;
+  }
+
+  const displayName = user.name || user.email?.split('@')[0] || 'Usuario';
+  const firstLetter = (user.name || user.email || 'U').charAt(0).toUpperCase();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black p-4 overflow-y-auto">
+      <div className="max-w-4xl mx-auto py-8">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          {t.back}
+        </button>
+
+        <div className="flex items-center gap-3 mb-8">
+          <UserIcon className="w-8 h-8 text-purple-500" />
+          <h1 className="text-4xl font-bold text-white">{t.title}</h1>
         </div>
 
-        {/* Details Section */}
-        <div className="w-full md:w-2/3 space-y-6">
+        {/* Account Info Card */}
+        <div className="bg-gray-900/50 backdrop-blur-xl p-8 rounded-2xl border border-gray-800 mb-6">
+          <h2 className="text-2xl font-bold text-white mb-6">{t.accountInfo}</h2>
           
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-purple-500" /> {t.details}
-            </h3>
-            <div className="space-y-4">
-               <div className="flex items-center gap-3 p-3 bg-black/30 rounded-lg">
-                  <Mail className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-300 text-sm">{user.email}</span>
-               </div>
-               <div className="flex items-center gap-3 p-3 bg-black/30 rounded-lg">
-                  <Calendar className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-300 text-sm">
-                    {t.memberSince} {new Date(user.joinDate).toLocaleDateString()}
-                  </span>
-               </div>
+          <div className="space-y-6">
+            {/* Name */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">{t.name}</label>
+              <div className="flex items-center gap-3">
+                <UserIcon className="w-5 h-5 text-gray-500" />
+                <span className="text-white text-lg">{displayName}</span>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">{t.email}</label>
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-gray-500" />
+                <span className="text-white text-lg">{user.email}</span>
+              </div>
+            </div>
+
+            {/* Tier */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">{t.tier}</label>
+              <div className="flex items-center gap-3">
+                <Crown className="w-5 h-5 text-gray-500" />
+                <span className={`px-4 py-2 bg-gradient-to-r ${getTierColor(user.tier)} text-white font-bold rounded-lg uppercase`}>
+                  {t.tiers[user.tier as keyof typeof t.tiers] || user.tier}
+                </span>
+              </div>
             </div>
           </div>
-
-          <div className="bg-gray-900 border border-yellow-500/20 rounded-2xl p-6 relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-10">
-                <ShieldCheck className="w-24 h-24 text-yellow-500" />
-             </div>
-             
-             <div className="flex justify-between items-start mb-4 relative z-10">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-yellow-500" /> {t.subscription}
-                </h3>
-                <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full border border-green-500/30 uppercase">
-                  {t.active}
-                </span>
-             </div>
-
-             <div className="space-y-4 relative z-10">
-                <div className="flex justify-between items-center pb-4 border-b border-gray-800">
-                   <div>
-                      <div className="text-white font-bold">{t.plan}</div>
-                      <div className="text-xs text-gray-500">{t.price}</div>
-                   </div>
-                   <div className="text-right">
-                      <div className="text-gray-300 text-sm">{t.card}</div>
-                      <div className="text-xs text-gray-500">{t.paymentMethod}</div>
-                   </div>
-                </div>
-                
-                <div className="text-xs text-gray-500 italic">
-                   {t.nextBilling}
-                </div>
-
-                {!showConfirm ? (
-                   <button 
-                     onClick={() => setShowConfirm(true)}
-                     className="mt-4 text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-2 transition-colors"
-                   >
-                     <Trash2 className="w-4 h-4" /> {t.cancelBtn}
-                   </button>
-                ) : (
-                   <div className="mt-4 p-4 bg-red-900/20 border border-red-500/30 rounded-xl animate-fade-in">
-                      <div className="flex items-start gap-3 mb-3">
-                         <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                         <div>
-                            <h4 className="font-bold text-red-400 text-sm">{t.confirmTitle}</h4>
-                            <p className="text-xs text-gray-400 mt-1">{t.confirmDesc}</p>
-                         </div>
-                      </div>
-                      <div className="flex gap-3">
-                         <button 
-                           onClick={handleCancelSubscription}
-                           className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors"
-                         >
-                           {t.confirmYes}
-                         </button>
-                         <button 
-                           onClick={() => setShowConfirm(false)}
-                           className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg transition-colors"
-                         >
-                           {t.confirmNo}
-                         </button>
-                      </div>
-                   </div>
-                )}
-             </div>
-          </div>
-
         </div>
+
+        {/* Actions Card */}
+        <div className="bg-gray-900/50 backdrop-blur-xl p-8 rounded-2xl border border-gray-800">
+          <h2 className="text-2xl font-bold text-white mb-6">{t.actions}</h2>
+          
+          <div className="space-y-4">
+            {/* Logout */}
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-800 rounded-lg transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <LogOut className="w-5 h-5 text-gray-400 group-hover:text-white" />
+                <span className="text-white font-semibold">{t.logout}</span>
+              </div>
+              <ArrowLeft className="w-5 h-5 text-gray-400 group-hover:text-white rotate-180" />
+            </button>
+
+            {/* Delete Account */}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="w-full flex items-center justify-between p-4 bg-red-900/20 hover:bg-red-900/30 border border-red-500/30 rounded-lg transition-colors group"
+            >
+              <div className="flex items-center gap-3">
+                <Trash2 className="w-5 h-5 text-red-400" />
+                <span className="text-red-400 font-semibold">{t.deleteAccount}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 border border-red-500/50 rounded-2xl p-8 max-w-md w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <Shield className="w-8 h-8 text-red-500" />
+                <h3 className="text-2xl font-bold text-white">{t.deleteAccount}</h3>
+              </div>
+              
+              <p className="text-gray-300 mb-6">{t.deleteConfirm}</p>
+              
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  {t.confirmDelete}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

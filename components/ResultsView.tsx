@@ -13,9 +13,10 @@ interface ResultsViewProps {
   language: Language;
   onSave?: () => void;
   isPremium?: boolean;
+  isFromHistory?: boolean;  // ← AGREGAR ESTO
 }
 
-const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, onSave, isPremium }) => {
+const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, onSave, isPremium, isFromHistory }) => {
   const [saved, setSaved] = useState(false);
 
   const handleSaveClick = () => {
@@ -522,10 +523,13 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, on
             onClick={onReset}
             className="w-full md:w-auto px-8 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors shadow-lg shadow-white/10"
           >
-            {t.practiceAgain}
+            {isFromHistory 
+              ? (language === 'es' ? 'Volver al Historial' : 'Back to History')
+              : t.practiceAgain
+            }
           </button>
           
-          {isPremium && onSave && (
+          {!isFromHistory && isPremium && onSave && (
              <button 
               onClick={handleSaveClick}
               disabled={saved}
