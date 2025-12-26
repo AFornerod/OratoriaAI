@@ -16,6 +16,8 @@ import PricingView from '@/components/PricingView';
 
 // Services & Types
 import { analyzeVideo } from '@/lib/gemini/service';
+// TODO: Temporalmente comentadas hasta crear las APIs
+// import { saveAnalysisToHistory, getHistory, getCurrentSession, logoutUser } from '@/lib/api/client';
 import { AppState, AnalysisResult, Language, User } from '@/types';
 
 // Helper to convert Blob to Base64
@@ -32,10 +34,6 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
     reader.readAsDataURL(blob);
   });
 };
-
-// 🆕 Cache global para evitar llamadas duplicadas
-let globalLimitsCache: any = null;
-let globalLastEmail: string | null = null;
 
 function HomePageContent() {
   const { update } = useSession()
@@ -57,69 +55,7 @@ function HomePageContent() {
 
   // History State
   const [historyItems, setHistoryItems] = useState<any[]>([]);
-  const [isViewingFromHistory, setIsViewingFromHistory] = useState(false);
-
-  // 🆕 LÍMITES DE ANÁLISIS MENSUALES
-  const [analysisLimit, setAnalysisLimit] = useState<{
-    used: number;
-    remaining: number | 'unlimited';
-    canAnalyze: boolean;
-    tier: string;
-    currentMonth?: string;
-  } | null>(null);
-  const [isLoadingLimit, setIsLoadingLimit] = useState(false);
-
-  // 🆕 FUNCIÓN PARA CARGAR LÍMITES MENSUALES CON CACHE
-  const loadAnalysisLimit = async () => {
-    if (!user?.email) return;
-    
-    // 🛑 Si ya se cargó para este usuario, usar cache
-    if (globalLastEmail === user.email && globalLimitsCache) {
-      console.log('📦 [page] Using cached limits');
-      setAnalysisLimit(globalLimitsCache);
-      return;
-    }
-    
-    console.log('📊 [page] Loading limits for:', user.email);
-    setIsLoadingLimit(true);
-    try {
-      const response = await fetch('/api/check-limit');
-      const data = await response.json();
-      
-      if (data.success) {
-        const limits = {
-          used: data.used,
-          remaining: data.remaining,
-          canAnalyze: data.canAnalyze,
-          tier: data.tier,
-          currentMonth: data.currentMonth,
-        };
-        
-        setAnalysisLimit(limits);
-        
-        // 🆕 Guardar en cache global
-        globalLimitsCache = limits;
-        globalLastEmail = user.email;
-        
-        console.log('✅ [page] Limits loaded and cached:', limits);
-      }
-    } catch (error) {
-      console.error('❌ [page] Error loading analysis limit:', error);
-    } finally {
-      setIsLoadingLimit(false);
-    }
-  };
-
-  // ✅ Cargar límites cuando el usuario inicia sesión - ARREGLADO
-  useEffect(() => {
-    if (user?.email) {
-      loadAnalysisLimit();
-    } else {
-      setAnalysisLimit(null);
-      globalLimitsCache = null;
-      globalLastEmail = null;
-    }
-  }, [user?.email]); // ✅ Solo depende de email, no del objeto user completo
+const [isViewingFromHistory, setIsViewingFromHistory] = useState(false);
 
   // TODO: Load history when user logs in
   useEffect(() => {
@@ -129,74 +65,76 @@ function HomePageContent() {
     }
   }, [user]);
 
-  // Refrescar sesión después del checkout exitoso
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const checkoutStatus = searchParams.get('checkout');
+// Refrescar sesión después del checkout exitoso
+useEffect(() => {
+  const searchParams = new URLSearchParams(window.location.search);
+  const checkoutStatus = searchParams.get('checkout');
+  
+  if (checkoutStatus === 'success') {
+    console.log('✅ Checkout success detected, forcing tier update...');
     
-    if (checkoutStatus === 'success') {
-      console.log('✅ Checkout success detected, forcing tier update...');
+    // Limpiar la URL inmediatamente
+    window.history.replaceState({}, '', '/');
+    
+    // Función para verificar si el tier cambió
+    const checkTierUpdate = async (attempts = 0) => {
+      const maxAttempts = 20; // 20 intentos = 20 segundos máximo
       
-      // Limpiar la URL inmediatamente
-      window.history.replaceState({}, '', '/');
+      if (attempts >= maxAttempts) {
+        console.log('⚠️ Max attempts reached, forcing full reload...');
+        // Hacer logout y login de nuevo para forzar refresh del JWT
+        await signOut({ redirect: false });
+        window.location.href = '/auth/signin?callbackUrl=/';
+        return;
+      }
       
-      // Función para verificar si el tier cambió
-      const checkTierUpdate = async (attempts = 0) => {
-        const maxAttempts = 20; // 20 intentos = 20 segundos máximo
+      try {
+        console.log(`🔄 Attempt ${attempts + 1}: Forcing session refresh...`);
         
-        if (attempts >= maxAttempts) {
-          console.log('⚠️ Max attempts reached, forcing full reload...');
-          // Hacer logout y login de nuevo para forzar refresh del JWT
-          await signOut({ redirect: false });
-          window.location.href = '/auth/signin?callbackUrl=/';
-          return;
-        }
+        // MÉTODO 1: Forzar update del JWT
+        const updateResult = await update();
+        console.log('📝 Update result:', updateResult);
         
-        try {
-          console.log(`🔄 Attempt ${attempts + 1}: Forcing session refresh...`);
+        // MÉTODO 2: Obtener sesión directamente del servidor
+        const sessionResponse = await fetch('/api/auth/session', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store', // IMPORTANTE: No usar cache
+        });
+        const session = await sessionResponse.json();
+        
+        console.log(`🔍 Session tier:`, session?.user?.tier);
+        console.log(`🔍 User from hook:`, user?.tier);
+        
+        // Verificar si el tier cambió
+        if (session?.user?.tier && session.user.tier !== 'free') {
+          console.log('✅ Tier updated successfully!', session.user.tier);
           
-          // MÉTODO 1: Forzar update del JWT
-          const updateResult = await update();
-          console.log('📝 Update result:', updateResult);
-          
-          // MÉTODO 2: Obtener sesión directamente del servidor
-          const sessionResponse = await fetch('/api/auth/session', {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            cache: 'no-store', // IMPORTANTE: No usar cache
-          });
-          const session = await sessionResponse.json();
-          
-          console.log(`🔍 Session tier:`, session?.user?.tier);
-          console.log(`🔍 User from hook:`, user?.tier);
-          
-          // Verificar si el tier cambió
-          if (session?.user?.tier && session.user.tier !== 'free') {
-            console.log('✅ Tier updated successfully!', session.user.tier);
-            
-            // Forzar recarga completa para actualizar todo
-            console.log('🔄 Force reloading page in 1 second...');
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
-          } else {
-            // Esperar 1 segundo y volver a intentar
-            setTimeout(() => checkTierUpdate(attempts + 1), 1000);
-          }
-        } catch (error) {
-          console.error('❌ Error checking tier update:', error);
+          // Forzar recarga completa para actualizar todo
+          console.log('🔄 Force reloading page in 1 second...');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          // Esperar 1 segundo y volver a intentar
           setTimeout(() => checkTierUpdate(attempts + 1), 1000);
         }
-      };
-      
-      // Esperar 5 segundos antes de empezar a verificar
-      // (dar tiempo suficiente al webhook de procesar y escribir en BD)
-      console.log('⏳ Waiting 5 seconds for webhook to process...');
-      setTimeout(() => checkTierUpdate(), 5000);
-    }
-  }, [update, user]);
+      } catch (error) {
+        console.error('❌ Error checking tier update:', error);
+        setTimeout(() => checkTierUpdate(attempts + 1), 1000);
+      }
+    };
+    
+    // Esperar 5 segundos antes de empezar a verificar
+    // (dar tiempo suficiente al webhook de procesar y escribir en BD)
+    console.log('⏳ Waiting 5 seconds for webhook to process...');
+    setTimeout(() => checkTierUpdate(), 5000);
+  }
+}, [update, user]);
+
+
 
   // Translation Dictionary for Home Screen
   const t = {
@@ -306,10 +244,10 @@ function HomePageContent() {
     }
   }[language];
 
-  const handleRecordingComplete = async (blob: Blob) => {
+const handleRecordingComplete = async (blob: Blob) => {
     setAppState(AppState.PROCESSING);
     try {
-      // 🆕 VALIDAR tamaño del video
+	// 🆕 VALIDAR tamaño del video
       const sizeInMB = blob.size / (1024 * 1024);
       if (sizeInMB > 15) {
         setAppState(AppState.ERROR);
@@ -333,7 +271,7 @@ function HomePageContent() {
         base64Video, 
         mimeType, 
         language, 
-        isPremium,
+        isPremium,  // Esto se pasará como parámetro
         topic, 
         audience, 
         goal
@@ -342,35 +280,14 @@ function HomePageContent() {
       // 4. Show Results
       setResult(analysis);
       setAppState(AppState.RESULTS);
-      
-      // 5. 🆕 Recargar límites después del análisis exitoso
-      loadAnalysisLimit();
-      
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       setAppState(AppState.ERROR);
-      
-      // 🆕 Verificar si es error de límite alcanzado (429)
-      if (error.message?.includes('Límite de análisis') || error.message?.includes('429')) {
-        setErrorMsg(
-          language === 'es' 
-            ? 'Has alcanzado el límite de análisis mensuales de tu plan. El límite se reiniciará el próximo mes. Mejora tu plan para obtener más análisis.' 
-            : "You've reached your monthly analysis limit. The limit will reset next month. Upgrade your plan for more analyses."
-        );
-      } else {
-        setErrorMsg(
-          language === 'es' 
-            ? "Hubo un error analizando tu video. Intenta una grabación más corta o verifica tu conexión." 
-            : "There was an error analyzing your video. Try a shorter recording or check your connection."
-        );
-      }
-      
-      // 🆕 Recargar límites incluso si falla
-      loadAnalysisLimit();
+      setErrorMsg(language === 'es' ? "Hubo un error analizando tu video. Intenta una grabación más corta o verifica tu conexión." : "There was an error analyzing your video. Try a shorter recording or check your connection.");
     }
   };
 
-  const handleSaveResult = async () => {
+const handleSaveResult = async () => {
     if (!result) return;
     try {
       const response = await fetch('/api/save-analysis', {
@@ -382,7 +299,7 @@ function HomePageContent() {
           goal,
           language,
           tier: user?.tier || 'free',
-          userId: user?.id || null
+          userId: user?.id || null  // ← AGREGAR ESTO
         })
       });
 
@@ -409,26 +326,18 @@ function HomePageContent() {
   };
 
 const resetApp = () => {
-  // ✅ Si viene del historial, regresar al historial
-  if (isViewingFromHistory) {
-    setAppState(AppState.HISTORY);
-    setIsViewingFromHistory(false);
-  } else {
     setAppState(AppState.IDLE);
-  }
-  
-  setResult(null);
-  setErrorMsg(null);
-  // 🆕 Recargar límites al resetear
-  loadAnalysisLimit();
-};
+    setResult(null);
+    setErrorMsg(null);
+    setIsViewingFromHistory(false);  // ← AGREGAR ESTO
+  };
 
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'es' ? 'en' : 'es');
   };
 
   // Auth Handlers
-  const handleSubscribeSuccess = () => {
+const handleSubscribeSuccess = () => {
     // Después del registro exitoso, el usuario ya está logueado
     setAppState(AppState.IDLE);
     alert(language === 'es'
@@ -437,114 +346,194 @@ const resetApp = () => {
     );
   };
 
-  const handleLoginSuccess = () => {
+const handleLoginSuccess = () => {
     // El usuario ya está en sesión gracias a NextAuth
     setAppState(AppState.IDLE);
+    // Opcional: mostrar mensaje de bienvenida
+    alert(language === 'es' 
+      ? `¡Bienvenido ${user?.name || user?.email}!` 
+      : `Welcome ${user?.name || user?.email}!`
+    );
   };
 
-  const handleLogout = async () => {
+const handleLogout = async () => {
     await signOut({ redirect: false });
+    setHistoryItems([]);
     setAppState(AppState.IDLE);
   };
 
-  // Feature Icons
+const handleHistoryRefresh = () => {
+    // TODO: Implementar cuando tengamos API
+    // setHistoryItems(getHistory());
+  };
+
+const handleViewAnalysisFromHistory = (analysis: any) => {
+    // Reconstruct result from saved analysis
+    const reconstructedResult = {
+      overallScore: analysis.overall_score,
+      summary: analysis.summary,
+      ...analysis.analysis_data
+    };
+    
+    setResult(reconstructedResult);
+    setTopic(analysis.topic || '');
+    setGoal(analysis.goal || '');
+    setIsViewingFromHistory(true);  // ← AGREGAR ESTO
+    setAppState(AppState.RESULTS);
+  };
+
   const featureIcons = [
     <Mic className="w-6 h-6 text-purple-400" />,
-    <Clock className="w-6 h-6 text-purple-400" />,
-    <Users className="w-6 h-6 text-purple-400" />,
-    <Smile className="w-6 h-6 text-purple-400" />,
-    <Target className="w-6 h-6 text-purple-400" />
+    <BarChart3 className="w-6 h-6 text-blue-400" />,
+    <Users className="w-6 h-6 text-pink-400" />,
+    <Smile className="w-6 h-6 text-yellow-400" />,
+    <Zap className="w-6 h-6 text-orange-400" />
   ];
 
   const premiumIcons = [
-    <Zap className="w-6 h-6 text-yellow-400" />,
-    <TrendingUp className="w-6 h-6 text-yellow-400" />,
-    <Mic2 className="w-6 h-6 text-yellow-400" />,
-    <Shirt className="w-6 h-6 text-yellow-400" />,
-    <LayoutTemplate className="w-6 h-6 text-yellow-400" />
+    <Clock className="w-6 h-6 text-yellow-400" />,
+    <TrendingUp className="w-6 h-6 text-green-400" />,
+    <Mic2 className="w-6 h-6 text-purple-400" />,
+    <Shirt className="w-6 h-6 text-pink-400" />,
+    <Zap className="w-6 h-6 text-orange-400" />
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-purple-950 to-gray-950 text-white">
-      {/* Navbar */}
-      <nav className="border-b border-gray-800 bg-black/30 backdrop-blur-lg sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={resetApp}>
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-              <Mic className="w-6 h-6" />
+    <div className="min-h-screen bg-black text-white selection:bg-purple-500 selection:text-white">
+      {/* Navigation / Header */}
+      <nav className="border-b border-gray-800 bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div className="flex items-center justify-between h-16">
+        {/* LEFT SIDE - Logo + Tier Badge/Upgrade */}
+        <div className="flex items-center gap-4">
+          {/* Logo */}
+          <div className="flex items-center gap-2 cursor-pointer" onClick={resetApp} role="button">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
+               <Mic className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl font-extrabold tracking-tight">Oratoria<span className="text-purple-400">AI</span></h1>
-            </div>
+            <span className="font-bold text-xl tracking-tight">Oratoria<span className="text-purple-500">AI</span></span>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={toggleLanguage}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
-              title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
-            >
-              <Globe className="w-4 h-4" />
-              <span className="font-bold text-sm">{language === 'es' ? 'ES' : 'EN'}</span>
-            </button>
 
-            {user && (
-              <>
-                <button
-                  onClick={() => setAppState(AppState.HISTORY)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    appState === AppState.HISTORY ? 'bg-purple-600' : 'hover:bg-gray-800'
-                  }`}
-                >
-                  <History className="w-4 h-4" />
-                  <span className="hidden sm:inline">{t.navHistory}</span>
-                </button>
-
-                <button
-                  onClick={() => setAppState(AppState.PROFILE)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                    appState === AppState.PROFILE ? 'bg-purple-600' : 'hover:bg-gray-800'
-                  }`}
-                >
-                  <UserIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{user?.name || user?.email}</span>
-                </button>
-              </>
-            )}
-
-            {/* Botón Ver Planes - Disponible para TODOS los usuarios */}
+          {/* Tier Badge + Upgrade Button Logic */}
+          {user && user.tier === 'free' && (
             <button
               onClick={() => setAppState(AppState.PRICING)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${
-                isPremium 
-                  ? 'bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600'
-                  : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'
-              }`}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold rounded-lg transition-all shadow-lg shadow-yellow-500/30 animate-pulse"
             >
               <Crown className="w-4 h-4" />
               <span className="hidden sm:inline">
-                {language === 'es' ? 'Ver Planes' : 'View Plans'}
+                {language === 'es' ? 'Upgrade' : 'Upgrade'}
               </span>
             </button>
+          )}
 
-            {user ? (
+          {user && user.tier === 'starter' && (
+            <>
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/50 rounded-lg">
+                <Crown className="w-4 h-4 text-blue-400" />
+                <span className="text-blue-400 text-sm font-bold uppercase">Starter</span>
+              </div>
               <button
+                onClick={() => setAppState(AppState.PRICING)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {language === 'es' ? 'Ver Planes' : 'View Plans'}
+              </button>
+            </>
+          )}
+
+          {user && user.tier === 'pro' && (
+            <>
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/50 rounded-lg">
+                <Crown className="w-4 h-4 text-purple-400" />
+                <span className="text-purple-400 text-sm font-bold uppercase">Pro</span>
+              </div>
+              <button
+                onClick={() => setAppState(AppState.PRICING)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {language === 'es' ? 'Upgrade' : 'Upgrade'}
+              </button>
+            </>
+          )}
+
+          {user && user.tier === 'premium' && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg">
+              <Crown className="w-4 h-4 text-white" />
+              <span className="text-white text-sm font-bold uppercase">Premium ⭐</span>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT SIDE - Language, History, User */}
+        <div className="flex items-center gap-3">
+          {/* Language Toggle */}
+          <button 
+            onClick={toggleLanguage}
+            className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+          >
+            <Globe className="w-4 h-4" />
+            <span className="text-sm font-medium">{language.toUpperCase()}</span>
+          </button>
+
+          {/* Ver Planes (NO autenticado) */}
+          {!user && (
+            <button 
+              onClick={() => setAppState(AppState.PRICING)}
+              className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              {language === 'es' ? 'Ver Planes' : 'View Plans'}
+            </button>
+          )}
+
+          {/* History (Usuarios autenticados) */}
+          {user && (
+            <button 
+              onClick={() => setAppState(AppState.HISTORY)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              title={language === 'es' ? 'Ver Historial' : 'View History'}
+            >
+              <History className="w-4 h-4" />
+              <span className="hidden md:inline text-sm font-medium">
+                {language === 'es' ? 'Historial' : 'History'}
+              </span>
+            </button>
+          )}
+
+          {/* User Profile or Login */}
+          {user ? (
+            <div className="flex items-center gap-3 border-l border-gray-700 pl-3">
+              <div 
+                onClick={() => setAppState(AppState.PROFILE)}
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                role="button"
+              >
+                <div className="w-8 h-8 bg-purple-900 rounded-full flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-purple-200" />
+                </div>
+                <span className="hidden md:inline text-sm font-medium text-white">
+                  {user.name ? user.name.split(' ')[0] : user.email?.split('@')[0] || 'Usuario'}
+                </span>
+              </div>
+              <button 
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-800 rounded-lg transition-colors"
+                title={language === 'es' ? 'Cerrar Sesión' : 'Sign Out'}
+                className="text-gray-400 hover:text-red-400 transition-colors"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">{t.navLogout}</span>
+                <LogOut className="w-5 h-5" />
               </button>
-            ) : (
-              <button
-                onClick={() => setAppState(AppState.LOGIN)}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">{t.navLogin}</span>
-              </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setAppState(AppState.LOGIN)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              <LogIn className="w-4 h-4" />
+              <span className="hidden sm:inline">{language === 'es' ? 'Iniciar Sesión' : 'Sign In'}</span>
+            </button>
+          )}
+        </div>
+      </div>
         </div>
       </nav>
 
@@ -566,53 +555,20 @@ const resetApp = () => {
               </p>
             </div>
 
-            {/* 🆕 1. CARACTERÍSTICAS - PRIMERO */}
-            <div className="flex flex-wrap justify-center gap-6 w-full max-w-6xl">
-              {t.features.map((feature, idx) => (
-                <div key={idx} className="p-6 bg-gray-900 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px]">
-                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4">
-                    {featureIcons[idx]}
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                  <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* 🆕 2. BOTÓN Y PLAN - DESPUÉS */}
             <div className="w-full max-w-4xl bg-gray-900/50 p-1 rounded-3xl border border-gray-800 backdrop-blur-sm">
                <div className="bg-black rounded-[20px] p-8 md:p-12">
                   <div className="flex flex-col items-center gap-6">
-                    {/* Botón con validación de límites */}
-                    <button 
-                      onClick={() => {
-                        if (user && analysisLimit && !analysisLimit.canAnalyze) {
-                          setAppState(AppState.ERROR);
-                          setErrorMsg(
-                            language === 'es'
-                              ? 'Has alcanzado el límite de análisis mensuales. Mejora tu plan para continuar.'
-                              : 'Monthly analysis limit reached. Upgrade your plan to continue.'
-                          );
-                        } else {
-                          setAppState(AppState.RECORDING);
-                        }
-                      }}
-                      disabled={user && analysisLimit !== null && !analysisLimit.canAnalyze}
-                      className={`group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 font-lg rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-                        user && analysisLimit !== null && !analysisLimit.canAnalyze
-                          ? 'bg-gray-600 cursor-not-allowed opacity-50'
-                          : 'bg-purple-600 hover:bg-purple-700 focus:ring-purple-600'
-                      }`}
+<button 
+                      onClick={() => setAppState(AppState.RECORDING)}
+                      className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-purple-600 font-lg rounded-full hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-600 focus:ring-offset-gray-900"
                     >
                       <span className="mr-2 text-lg">{t.startBtn}</span>
                       <Play className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      {user && analysisLimit !== null && analysisLimit.canAnalyze && (
-                        <div className="absolute -inset-3 rounded-full bg-purple-600 opacity-20 blur-lg group-hover:opacity-40 transition duration-200"></div>
-                      )}
+                      <div className="absolute -inset-3 rounded-full bg-purple-600 opacity-20 blur-lg group-hover:opacity-40 transition duration-200"></div>
                     </button>
                     
-                    {/* Plan Info con Contador Mensual */}
-                    {/*{user ? (
+                    {/* Plan Info - Mostrar info del plan según usuario */}
+                    {user ? (
                       <div className="w-full max-w-md mt-2">
                         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
                           <div className="flex items-center justify-between mb-3">
@@ -658,75 +614,31 @@ const resetApp = () => {
                                 {user.tier === 'free' ? '1 min' :
                                  user.tier === 'starter' ? '15 min' :
                                  user.tier === 'pro' ? '30 min' :
-                                 '1 hora'}
+                                 '60 min'}
                               </div>
                             </div>
                           </div>
-*/}
-                          {/* INDICADOR DE ANÁLISIS RESTANTES ESTE MES */}
-                          {/*{analysisLimit && (
-                            <div className="mt-3 pt-3 border-t border-gray-700">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-gray-400">
-                                  {language === 'es' ? 'Disponibles este mes:' : 'Available this month:'}
-                                </span>
-                                <span className={`text-sm font-bold ${
-                                  analysisLimit.remaining === 'unlimited' ? 'text-green-400' :
-                                  analysisLimit.remaining === 0 ? 'text-red-400' :
-                                  analysisLimit.remaining <= 2 ? 'text-yellow-400' :
-                                  'text-green-400'
-                                }`}>
-                                  {analysisLimit.remaining === 'unlimited' 
-                                    ? '∞' 
-                                    : `${analysisLimit.remaining} / ${
-                                        user.tier === 'free' ? '3' :
-                                        user.tier === 'starter' ? '5' :
-                                        user.tier === 'pro' ? '10' :
-                                        '∞'
-                                      }`
-                                  }
-                                </span>
-                              </div>
-                              */}
-                              {/* BARRA DE PROGRESO */}
-                              {/*{analysisLimit.remaining !== 'unlimited' && (
-                                <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2">
-                                  <div 
-                                    className={`h-1.5 rounded-full transition-all ${
-                                      analysisLimit.remaining === 0 ? 'bg-red-500' :
-                                      analysisLimit.remaining <= 2 ? 'bg-yellow-500' :
-                                      'bg-green-500'
-                                    }`}
-                                    style={{ 
-                                      width: `${
-                                        (Number(analysisLimit.remaining) / (
-                                          user.tier === 'free' ? 3 :
-                                          user.tier === 'starter' ? 5 :
-                                          user.tier === 'pro' ? 10 : 1
-                                        )) * 100
-                                      }%` 
-                                    }}
-                                  ></div>
-                                </div>
-                              )}
-                              
-                              {analysisLimit.remaining === 0 && (
-                                <p className="text-xs text-red-400 mt-1">
-                                  {language === 'es' 
-                                    ? 'Límite alcanzado. Se reinicia el próximo mes o mejora tu plan.' 
-                                    : 'Limit reached. Resets next month or upgrade your plan.'}
-                                </p>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500 uppercase tracking-widest">{t.noLogin}</p>
                     )}
-*/}
+
                   </div>
                </div>
+            </div>
+
+            {/* Free Features */}
+            <div className="flex flex-wrap justify-center gap-6 w-full max-w-6xl mt-12">
+              {t.features.map((feature, idx) => (
+                <div key={idx} className="p-6 bg-gray-900 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px]">
+                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4">
+                    {featureIcons[idx]}
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
+                  <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
+                </div>
+              ))}
             </div>
 
             {/* Premium Features (Only if Premium) */}
@@ -801,20 +713,18 @@ const resetApp = () => {
                       </label>
                       <div className="relative">
                         <Crosshair className="absolute top-1/2 -translate-y-1/2 left-3 w-4 h-4 text-gray-500 pointer-events-none" />
-                        <select
+                        <select 
                           value={goal}
                           onChange={(e) => setGoal(e.target.value)}
                           className="w-full bg-black/50 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all text-sm appearance-none cursor-pointer"
                         >
-                          <option value="" disabled className="bg-gray-900">{t.goalPlaceholder}</option>
-                          {t.goals.map((g, i) => (
-                            <option key={i} value={g} className="bg-gray-900">{g}</option>
+                          <option value="" className="text-gray-500">{t.goalPlaceholder}</option>
+                          {t.goals.map((g, idx) => (
+                            <option key={idx} value={g} className="text-white bg-gray-900">{g}</option>
                           ))}
                         </select>
-                        <div className="absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                         </div>
                       </div>
                     </div>
@@ -822,135 +732,111 @@ const resetApp = () => {
                </div>
              )}
 
-            <div className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 border border-purple-500/30 rounded-3xl p-8 shadow-2xl shadow-purple-500/10 max-w-4xl mx-auto">
-              <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold mb-2">{t.stageTitle}</h2>
-                <p className="text-gray-400">{t.stageDesc}</p>
-              </div>
-              <Recorder onRecordingComplete={handleRecordingComplete} language={language} />
-              <div className="flex justify-center mt-6">
-                <button
-                  onClick={resetApp}
-                  className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-                >
-                  {t.cancel}
-                </button>
-              </div>
-            </div>
+             <div className="mb-8 text-center">
+               <h2 className="text-3xl font-bold mb-2">{t.stageTitle}</h2>
+               <p className="text-gray-400 text-lg">{t.stageDesc}</p>
+             </div>
+             <Recorder onRecordingComplete={handleRecordingComplete} language={language} />
+             <div className="mt-8 text-center">
+                <button onClick={resetApp} className="text-gray-500 hover:text-white underline">{t.cancel}</button>
+             </div>
           </div>
         )}
 
-        {/* State: PROCESSING */}
-        {appState === AppState.PROCESSING && (
-          <div className="flex flex-col items-center justify-center space-y-6 animate-fade-in py-20">
-            <div className="relative">
-              <div className="w-24 h-24 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Mic className="w-10 h-10 text-purple-400 animate-pulse" />
-              </div>
-            </div>
-            <h2 className="text-3xl font-bold">{t.processing}</h2>
-            <p className="text-gray-400 max-w-md text-center">{t.processingDesc}</p>
-          </div>
-        )}
-
-        {/* State: ANALYZING */}
-        {appState === AppState.ANALYZING && (
-          <div className="flex flex-col items-center justify-center space-y-6 animate-fade-in py-20">
-            <div className="relative">
-              <div className="w-24 h-24 border-4 border-pink-600 border-t-transparent rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <BarChart3 className="w-10 h-10 text-pink-400 animate-pulse" />
-              </div>
-            </div>
-            <h2 className="text-3xl font-bold">{t.analyzing}</h2>
-            <p className="text-gray-400 max-w-md text-center">{t.analyzingDesc}</p>
+        {/* State: PROCESSING / ANALYZING */}
+        {(appState === AppState.PROCESSING || appState === AppState.ANALYZING) && (
+          <div className="flex flex-col items-center justify-center h-[60vh] animate-fade-in">
+             <div className="relative">
+               <div className="absolute inset-0 bg-purple-500 blur-xl opacity-20 rounded-full animate-pulse"></div>
+               <Loader2 className="w-20 h-20 text-purple-500 animate-spin relative z-10" />
+             </div>
+             <h2 className="text-3xl font-bold mt-8 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-600">
+               {appState === AppState.PROCESSING ? t.processing : t.analyzing}
+             </h2>
+             <p className="text-gray-400 mt-4 max-w-md text-center">
+               {appState === AppState.PROCESSING ? t.processingDesc : t.analyzingDesc}
+             </p>
           </div>
         )}
 
         {/* State: RESULTS */}
-        {appState === AppState.RESULTS && result && (
+{appState === AppState.RESULTS && result && (
           <ResultsView 
             result={result} 
             onReset={resetApp} 
-            language={language}
+            language={language} 
             onSave={handleSaveResult}
-  				  user={user} 
-            isFromHistory={isViewingFromHistory} 
+            isPremium={isPremium}
+            isFromHistory={isViewingFromHistory}  // ← AGREGAR ESTO
           />
-        )}
-
-        {/* State: ERROR */}
-        {appState === AppState.ERROR && (
-          <div className="flex flex-col items-center justify-center space-y-6 animate-fade-in py-20">
-            <div className="w-24 h-24 bg-red-900/20 rounded-full flex items-center justify-center border-4 border-red-600">
-              <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-red-400">{t.errorTitle}</h2>
-            <p className="text-gray-400 max-w-md text-center">{errorMsg}</p>
-            <button
-              onClick={resetApp}
-              className="px-8 py-4 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold transition-colors"
-            >
-              {t.retry}
-            </button>
-          </div>
         )}
 
         {/* State: PREMIUM */}
         {appState === AppState.PREMIUM && (
           <PremiumView 
-            onClose={resetApp} 
-            onSubscribeSuccess={handleSubscribeSuccess}
-            language={language}
-          />
-        )}
-
-        {/* State: PRICING */}
-        {appState === AppState.PRICING && (
-          <PricingView 
-            onClose={resetApp}
-            language={language}
-          />
-        )}
-
-        {/* State: HISTORY */}
-        {appState === AppState.HISTORY && (
-          <HistoryView
-            onBack={resetApp}  // ✅ 1. Cambio aquí
-            language={language}
-            onViewAnalysis={(analysis) => {
-            setResult(analysis.analysis_data);  // ✅ 2. Cambio aquí
-            setIsViewingFromHistory(true);
-            setAppState(AppState.RESULTS);
-            }}
+            onBack={resetApp} 
+            language={language} 
+            onSubscribe={handleSubscribeSuccess} 
           />
         )}
 
         {/* State: LOGIN */}
         {appState === AppState.LOGIN && (
           <LoginView 
-            onClose={resetApp}
+            onBack={resetApp} 
+            language={language} 
             onLoginSuccess={handleLoginSuccess}
-            language={language}
           />
         )}
 
-        {/* State: PROFILE */}
-        {appState === AppState.PROFILE && user && (
-          <ProfileView
-            onClose={resetApp}
-            language={language}
+{/* State: PROFILE */}
+        {appState === AppState.PROFILE && (
+          <ProfileView 
+             onBack={resetApp}
+             onLogout={handleLogout}
+             language={language}
           />
         )}
+{appState === AppState.PRICING && (
+  <PricingView 
+    onBack={resetApp}
+    language={language}
+  />
+)}
+
+{/* State: HISTORY */}
+        {appState === AppState.HISTORY && (
+          <HistoryView 
+            onBack={resetApp} 
+            language={language}
+            onViewAnalysis={handleViewAnalysisFromHistory}
+          />
+        )}
+
+        {/* State: ERROR */}
+        {appState === AppState.ERROR && (
+          <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+             <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+                <span className="text-4xl">⚠️</span>
+             </div>
+             <h2 className="text-3xl font-bold text-white mb-4">{t.errorTitle}</h2>
+             <p className="text-gray-400 max-w-md mb-8">{errorMsg}</p>
+             <button 
+                onClick={resetApp}
+                className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-colors"
+             >
+                {t.retry}
+             </button>
+          </div>
+        )}
+
       </main>
     </div>
   );
-}
+};
 
-export default function Home() {
+// Wrapper con SessionProvider
+export default function HomePage() {
   return (
     <SessionProvider>
       <HomePageContent />

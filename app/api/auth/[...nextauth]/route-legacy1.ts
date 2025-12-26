@@ -1,4 +1,5 @@
 import NextAuth from 'next-auth';
+import { SupabaseAdapter } from '@auth/supabase-adapter';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
@@ -50,48 +51,43 @@ const handler = NextAuth({
         token.sub = user.id;
         token.tier = user.tier;
         token.email = user.email;
-        token.name = user.name;
-        console.log('✅ JWT (login): User tier =', token.tier);
       }
 
-      // CRÍTICO: SIEMPRE consultar la BD para obtener el tier actualizado
-      // Esto asegura que el tier esté siempre sincronizado con la BD
-      if (token.sub) {
-        try {
-          const { data: profile, error } = await supabaseAdmin
-            .from('user_profiles')
-            .select('tier, name')
-            .eq('id', token.sub)
-            .single();
+      // CRÍTICO: Si se solicita actualizar la sesión, consultar BD
+      // Esto se ejecuta cuando llamamos a /api/auth/session?update=1
+      if (trigger === 'update' || !token.tier) {
+        console.log('🔄 JWT callback: Updating tier from database for user:', token.sub);
+        
+        if (token.sub) {
+          try {
+            const { data: profile, error } = await supabaseAdmin
+              .from('user_profiles')
+              .select('tier, name')
+              .eq('id', token.sub)
+              .single();
 
-          if (!error && profile) {
-            // Solo loguear si el tier cambió
-            if (token.tier !== profile.tier) {
-              console.log('🔄 JWT callback: Tier changed from', token.tier, 'to', profile.tier);
+            if (!error && profile) {
+              console.log('✅ JWT callback: Found tier in DB:', profile.tier);
+              token.tier = profile.tier || 'free';
+              token.name = profile.name;
+            } else {
+              console.log('❌ JWT callback: Error fetching profile:', error);
             }
-            token.tier = profile.tier || 'free';
-            token.name = profile.name;
-          } else {
-            console.log('❌ JWT callback: Error fetching profile:', error);
+          } catch (err) {
+            console.error('❌ JWT callback: Exception fetching profile:', err);
           }
-        } catch (err) {
-          console.error('❌ JWT callback: Exception fetching profile:', err);
         }
       }
 
       return token;
     },
-    
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
         session.user.tier = token.tier as string;
         session.user.name = token.name as string;
         
-        console.log('📋 Session callback: User =', {
-          id: session.user.id,
-          tier: session.user.tier
-        });
+        console.log('📋 Session callback: Tier =', token.tier);
       }
       return session;
     },

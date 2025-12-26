@@ -408,20 +408,14 @@ function HomePageContent() {
     }
   };
 
-const resetApp = () => {
-  // ✅ Si viene del historial, regresar al historial
-  if (isViewingFromHistory) {
-    setAppState(AppState.HISTORY);
-    setIsViewingFromHistory(false);
-  } else {
+  const resetApp = () => {
     setAppState(AppState.IDLE);
-  }
-  
-  setResult(null);
-  setErrorMsg(null);
-  // 🆕 Recargar límites al resetear
-  loadAnalysisLimit();
-};
+    setResult(null);
+    setErrorMsg(null);
+    setIsViewingFromHistory(false);
+    // 🆕 Recargar límites al resetear
+    loadAnalysisLimit();
+  };
 
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'es' ? 'en' : 'es');
@@ -481,11 +475,10 @@ const resetApp = () => {
           <div className="flex items-center gap-4">
             <button 
               onClick={toggleLanguage}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
+              className="p-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
               title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
             >
-              <Globe className="w-4 h-4" />
-              <span className="font-bold text-sm">{language === 'es' ? 'ES' : 'EN'}</span>
+              <Globe className="w-5 h-5" />
             </button>
 
             {user && (
@@ -612,7 +605,7 @@ const resetApp = () => {
                     </button>
                     
                     {/* Plan Info con Contador Mensual */}
-                    {/*{user ? (
+                    {user ? (
                       <div className="w-full max-w-md mt-2">
                         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
                           <div className="flex items-center justify-between mb-3">
@@ -662,9 +655,9 @@ const resetApp = () => {
                               </div>
                             </div>
                           </div>
-*/}
+
                           {/* INDICADOR DE ANÁLISIS RESTANTES ESTE MES */}
-                          {/*{analysisLimit && (
+                          {analysisLimit && (
                             <div className="mt-3 pt-3 border-t border-gray-700">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-xs text-gray-400">
@@ -687,9 +680,9 @@ const resetApp = () => {
                                   }
                                 </span>
                               </div>
-                              */}
+                              
                               {/* BARRA DE PROGRESO */}
-                              {/*{analysisLimit.remaining !== 'unlimited' && (
+                              {analysisLimit.remaining !== 'unlimited' && (
                                 <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2">
                                   <div 
                                     className={`h-1.5 rounded-full transition-all ${
@@ -724,7 +717,7 @@ const resetApp = () => {
                     ) : (
                       <p className="text-sm text-gray-500 uppercase tracking-widest">{t.noLogin}</p>
                     )}
-*/}
+
                   </div>
                </div>
             </div>
@@ -875,8 +868,6 @@ const resetApp = () => {
             onReset={resetApp} 
             language={language}
             onSave={handleSaveResult}
-  				  user={user} 
-            isFromHistory={isViewingFromHistory} 
           />
         )}
 
@@ -919,12 +910,12 @@ const resetApp = () => {
         {/* State: HISTORY */}
         {appState === AppState.HISTORY && (
           <HistoryView
-            onBack={resetApp}  // ✅ 1. Cambio aquí
+            onClose={resetApp}
             language={language}
             onViewAnalysis={(analysis) => {
-            setResult(analysis.analysis_data);  // ✅ 2. Cambio aquí
-            setIsViewingFromHistory(true);
-            setAppState(AppState.RESULTS);
+              setResult(analysis);
+              setIsViewingFromHistory(true);
+              setAppState(AppState.RESULTS);
             }}
           />
         )}

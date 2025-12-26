@@ -27,7 +27,7 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         name: "Gratis",
         price: "$0",
         features: [
-          "1 análisis por día",
+          "3 análisis por mes",
           "Videos de hasta 1 minuto",
           "Análisis básico de oratoria",
           "Reporte de resultados"
@@ -37,8 +37,8 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         name: "Starter",
         price: "$9.99",
         features: [
-          "3 análisis por día",
-          "Videos de hasta 2 minutos",
+          "5 análisis por mes",
+          "Videos de hasta 15 minutos",
           "Análisis avanzado",
           "Guardar historial",
           "Reporte detallado"
@@ -48,8 +48,8 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         name: "Pro",
         price: "$14.99",
         features: [
-          "10 análisis por día",
-          "Videos de hasta 5 minutos",
+          "10 análisis por mes",
+          "Videos de hasta 30 minutos",
           "Análisis profesional",
           "Historial ilimitado",
           "Métricas avanzadas",
@@ -62,7 +62,7 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         price: "$49.99",
         features: [
           "Análisis ilimitados",
-          "Videos de hasta 10 minutos",
+          "Videos de hasta 60 minutos",
           "IA personalizada",
           "Exportar reportes",
           "Coaching personalizado",
@@ -82,7 +82,7 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         name: "Free",
         price: "$0",
         features: [
-          "1 analysis per day",
+          "3 analysis per month",
           "Videos up to 1 minute",
           "Basic speech analysis",
           "Results report"
@@ -92,8 +92,8 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         name: "Starter",
         price: "$9.99",
         features: [
-          "3 analyses per day",
-          "Videos up to 2 minutes",
+          "5 analyses per month",
+          "Videos up to 15 minutes",
           "Advanced analysis",
           "Save history",
           "Detailed report"
@@ -103,8 +103,8 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         name: "Pro",
         price: "$14.99",
         features: [
-          "10 analyses per day",
-          "Videos up to 5 minutes",
+          "10 analyses per month",
+          "Videos up to 30 minutes",
           "Professional analysis",
           "Unlimited history",
           "Advanced metrics",
@@ -117,7 +117,7 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
         price: "$49.99",
         features: [
           "Unlimited analyses",
-          "Videos up to 10 minutes",
+          "Videos up to 60 minutes",
           "Personalized AI",
           "Export reports",
           "Personal coaching",

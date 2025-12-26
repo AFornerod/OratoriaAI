@@ -54,28 +54,28 @@ const handler = NextAuth({
         console.log('✅ JWT (login): User tier =', token.tier);
       }
 
-      // CRÍTICO: SIEMPRE consultar la BD para obtener el tier actualizado
-      // Esto asegura que el tier esté siempre sincronizado con la BD
-      if (token.sub) {
-        try {
-          const { data: profile, error } = await supabaseAdmin
-            .from('user_profiles')
-            .select('tier, name')
-            .eq('id', token.sub)
-            .single();
+      // CRÍTICO: Si se solicita actualizar la sesión, consultar BD
+      if (trigger === 'update') {
+        console.log('🔄 JWT callback: Update triggered for user:', token.sub);
+        
+        if (token.sub) {
+          try {
+            const { data: profile, error } = await supabaseAdmin
+              .from('user_profiles')
+              .select('tier, name')
+              .eq('id', token.sub)
+              .single();
 
-          if (!error && profile) {
-            // Solo loguear si el tier cambió
-            if (token.tier !== profile.tier) {
-              console.log('🔄 JWT callback: Tier changed from', token.tier, 'to', profile.tier);
+            if (!error && profile) {
+              console.log('✅ JWT callback: Found tier in DB:', profile.tier);
+              token.tier = profile.tier || 'free';
+              token.name = profile.name;
+            } else {
+              console.log('❌ JWT callback: Error fetching profile:', error);
             }
-            token.tier = profile.tier || 'free';
-            token.name = profile.name;
-          } else {
-            console.log('❌ JWT callback: Error fetching profile:', error);
+          } catch (err) {
+            console.error('❌ JWT callback: Exception fetching profile:', err);
           }
-        } catch (err) {
-          console.error('❌ JWT callback: Exception fetching profile:', err);
         }
       }
 
@@ -88,10 +88,7 @@ const handler = NextAuth({
         session.user.tier = token.tier as string;
         session.user.name = token.name as string;
         
-        console.log('📋 Session callback: User =', {
-          id: session.user.id,
-          tier: session.user.tier
-        });
+        console.log('📋 Session callback: Tier =', token.tier);
       }
       return session;
     },

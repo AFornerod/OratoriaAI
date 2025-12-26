@@ -6,7 +6,8 @@ import { Language } from '@/types';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 interface ProfileViewProps {
-  onClose: () => void;
+  onBack: () => void;
+  onLogout: () => void;
   language: Language;
 }
 
@@ -16,8 +17,8 @@ let globalHasLoaded = false;
 let globalCachedData: any = null;
 let globalLastEmail: string | null = null;
 
-const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
-  const { user, signOut } = useAuth();
+const ProfileView: React.FC<ProfileViewProps> = ({ onBack, onLogout, language }) => {
+  const { user } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [analysisLimit, setAnalysisLimit] = useState<{
     used: number;
@@ -212,11 +213,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
     loadAnalysisLimit();
   };
 
-  const handleLogout = async () => {
-    await signOut({ redirect: false });
-    onClose();
-  };
-
   if (!user) {
     return null;
   }
@@ -227,7 +223,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black p-4 overflow-y-auto">
       <div className="max-w-4xl mx-auto py-8">
         <button
-          onClick={onClose}
+          onClick={onBack}
           className="flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -244,7 +240,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
           <h2 className="text-2xl font-bold text-white mb-6">{t.accountInfo}</h2>
           
           <div className="space-y-6">
-            {/* Name */}
             <div>
               <label className="block text-gray-400 text-sm mb-2">{t.name}</label>
               <div className="flex items-center gap-3">
@@ -253,7 +248,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
               </div>
             </div>
 
-            {/* Email */}
             <div>
               <label className="block text-gray-400 text-sm mb-2">{t.email}</label>
               <div className="flex items-center gap-3">
@@ -262,7 +256,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
               </div>
             </div>
 
-            {/* Tier */}
             <div>
               <label className="block text-gray-400 text-sm mb-2">{t.tier}</label>
               <div className="flex items-center gap-3">
@@ -273,7 +266,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
               </div>
             </div>
 
-            {/* CONSUMO MENSUAL */}
             <div className="pt-4 border-t border-gray-700">
               <div className="flex items-center gap-2 mb-3">
                 <BarChart3 className="w-5 h-5 text-purple-400" />
@@ -368,13 +360,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ onClose, language }) => {
           </div>
         </div>
 
-        {/* Actions Card */}
         <div className="bg-gray-900/50 backdrop-blur-xl p-8 rounded-2xl border border-gray-800">
           <h2 className="text-2xl font-bold text-white mb-6">{t.actions}</h2>
           
           <div className="space-y-4">
             <button
-              onClick={handleLogout}
+              onClick={onLogout}
               className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-800 rounded-lg transition-colors group"
             >
               <div className="flex items-center gap-3">

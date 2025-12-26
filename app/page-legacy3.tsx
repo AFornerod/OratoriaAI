@@ -33,10 +33,6 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
   });
 };
 
-// 🆕 Cache global para evitar llamadas duplicadas
-let globalLimitsCache: any = null;
-let globalLastEmail: string | null = null;
-
 function HomePageContent() {
   const { update } = useSession()
 
@@ -69,57 +65,40 @@ function HomePageContent() {
   } | null>(null);
   const [isLoadingLimit, setIsLoadingLimit] = useState(false);
 
-  // 🆕 FUNCIÓN PARA CARGAR LÍMITES MENSUALES CON CACHE
+  // 🆕 FUNCIÓN PARA CARGAR LÍMITES MENSUALES
   const loadAnalysisLimit = async () => {
-    if (!user?.email) return;
+    if (!user) return;
     
-    // 🛑 Si ya se cargó para este usuario, usar cache
-    if (globalLastEmail === user.email && globalLimitsCache) {
-      console.log('📦 [page] Using cached limits');
-      setAnalysisLimit(globalLimitsCache);
-      return;
-    }
-    
-    console.log('📊 [page] Loading limits for:', user.email);
     setIsLoadingLimit(true);
     try {
       const response = await fetch('/api/check-limit');
       const data = await response.json();
       
       if (data.success) {
-        const limits = {
+        setAnalysisLimit({
           used: data.used,
           remaining: data.remaining,
           canAnalyze: data.canAnalyze,
           tier: data.tier,
           currentMonth: data.currentMonth,
-        };
-        
-        setAnalysisLimit(limits);
-        
-        // 🆕 Guardar en cache global
-        globalLimitsCache = limits;
-        globalLastEmail = user.email;
-        
-        console.log('✅ [page] Limits loaded and cached:', limits);
+        });
+        console.log('📊 Limits loaded:', data);
       }
     } catch (error) {
-      console.error('❌ [page] Error loading analysis limit:', error);
+      console.error('Error loading analysis limit:', error);
     } finally {
       setIsLoadingLimit(false);
     }
   };
 
-  // ✅ Cargar límites cuando el usuario inicia sesión - ARREGLADO
+  // Cargar límites cuando el usuario inicia sesión
   useEffect(() => {
-    if (user?.email) {
+    if (user) {
       loadAnalysisLimit();
     } else {
       setAnalysisLimit(null);
-      globalLimitsCache = null;
-      globalLastEmail = null;
     }
-  }, [user?.email]); // ✅ Solo depende de email, no del objeto user completo
+  }, [user]);
 
   // TODO: Load history when user logs in
   useEffect(() => {
@@ -408,20 +387,14 @@ function HomePageContent() {
     }
   };
 
-const resetApp = () => {
-  // ✅ Si viene del historial, regresar al historial
-  if (isViewingFromHistory) {
-    setAppState(AppState.HISTORY);
-    setIsViewingFromHistory(false);
-  } else {
+  const resetApp = () => {
     setAppState(AppState.IDLE);
-  }
-  
-  setResult(null);
-  setErrorMsg(null);
-  // 🆕 Recargar límites al resetear
-  loadAnalysisLimit();
-};
+    setResult(null);
+    setErrorMsg(null);
+    setIsViewingFromHistory(false);
+    // 🆕 Recargar límites al resetear
+    loadAnalysisLimit();
+  };
 
   const toggleLanguage = () => {
     setLanguage(prev => prev === 'es' ? 'en' : 'es');
@@ -481,11 +454,10 @@ const resetApp = () => {
           <div className="flex items-center gap-4">
             <button 
               onClick={toggleLanguage}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
+              className="p-2 rounded-lg hover:bg-gray-800 transition-colors text-gray-400 hover:text-white"
               title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
             >
-              <Globe className="w-4 h-4" />
-              <span className="font-bold text-sm">{language === 'es' ? 'ES' : 'EN'}</span>
+              <Globe className="w-5 h-5" />
             </button>
 
             {user && (
@@ -566,24 +538,10 @@ const resetApp = () => {
               </p>
             </div>
 
-            {/* 🆕 1. CARACTERÍSTICAS - PRIMERO */}
-            <div className="flex flex-wrap justify-center gap-6 w-full max-w-6xl">
-              {t.features.map((feature, idx) => (
-                <div key={idx} className="p-6 bg-gray-900 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px]">
-                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4">
-                    {featureIcons[idx]}
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
-                  <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* 🆕 2. BOTÓN Y PLAN - DESPUÉS */}
             <div className="w-full max-w-4xl bg-gray-900/50 p-1 rounded-3xl border border-gray-800 backdrop-blur-sm">
                <div className="bg-black rounded-[20px] p-8 md:p-12">
                   <div className="flex flex-col items-center gap-6">
-                    {/* Botón con validación de límites */}
+                    {/* 🆕 Botón con validación de límites */}
                     <button 
                       onClick={() => {
                         if (user && analysisLimit && !analysisLimit.canAnalyze) {
@@ -611,8 +569,8 @@ const resetApp = () => {
                       )}
                     </button>
                     
-                    {/* Plan Info con Contador Mensual */}
-                    {/*{user ? (
+                    {/* 🆕 Plan Info con Contador Mensual */}
+                    {user ? (
                       <div className="w-full max-w-md mt-2">
                         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
                           <div className="flex items-center justify-between mb-3">
@@ -662,9 +620,9 @@ const resetApp = () => {
                               </div>
                             </div>
                           </div>
-*/}
-                          {/* INDICADOR DE ANÁLISIS RESTANTES ESTE MES */}
-                          {/*{analysisLimit && (
+
+                          {/* 🆕 INDICADOR DE ANÁLISIS RESTANTES ESTE MES */}
+                          {analysisLimit && (
                             <div className="mt-3 pt-3 border-t border-gray-700">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-xs text-gray-400">
@@ -687,9 +645,9 @@ const resetApp = () => {
                                   }
                                 </span>
                               </div>
-                              */}
-                              {/* BARRA DE PROGRESO */}
-                              {/*{analysisLimit.remaining !== 'unlimited' && (
+                              
+                              {/* 🆕 BARRA DE PROGRESO */}
+                              {analysisLimit.remaining !== 'unlimited' && (
                                 <div className="w-full bg-gray-800 rounded-full h-1.5 mb-2">
                                   <div 
                                     className={`h-1.5 rounded-full transition-all ${
@@ -724,9 +682,22 @@ const resetApp = () => {
                     ) : (
                       <p className="text-sm text-gray-500 uppercase tracking-widest">{t.noLogin}</p>
                     )}
-*/}
+
                   </div>
                </div>
+            </div>
+
+            {/* Free Features */}
+            <div className="flex flex-wrap justify-center gap-6 w-full max-w-6xl mt-12">
+              {t.features.map((feature, idx) => (
+                <div key={idx} className="p-6 bg-gray-900 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors w-full md:w-[calc(33.333%-1.5rem)] min-w-[300px]">
+                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4">
+                    {featureIcons[idx]}
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
+                  <p className="text-gray-400 leading-relaxed">{feature.desc}</p>
+                </div>
+              ))}
             </div>
 
             {/* Premium Features (Only if Premium) */}
@@ -875,8 +846,6 @@ const resetApp = () => {
             onReset={resetApp} 
             language={language}
             onSave={handleSaveResult}
-  				  user={user} 
-            isFromHistory={isViewingFromHistory} 
           />
         )}
 
@@ -919,12 +888,12 @@ const resetApp = () => {
         {/* State: HISTORY */}
         {appState === AppState.HISTORY && (
           <HistoryView
-            onBack={resetApp}  // ✅ 1. Cambio aquí
+            onClose={resetApp}
             language={language}
             onViewAnalysis={(analysis) => {
-            setResult(analysis.analysis_data);  // ✅ 2. Cambio aquí
-            setIsViewingFromHistory(true);
-            setAppState(AppState.RESULTS);
+              setResult(analysis);
+              setIsViewingFromHistory(true);
+              setAppState(AppState.RESULTS);
             }}
           />
         )}
