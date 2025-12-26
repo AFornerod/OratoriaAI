@@ -541,10 +541,12 @@ const App: React.FC = () => {
         {/* State: HISTORY */}
         {appState === AppState.HISTORY && (
           <HistoryView 
-            history={historyItems} 
-            onBack={resetApp} 
+            onBack={resetApp}
             language={language}
-            onRefresh={handleHistoryRefresh}
+            onViewAnalysis={(analysis) => {
+              setResult(analysis);
+              setAppState(AppState.RESULTS);
+            }}
           />
         )}
 
