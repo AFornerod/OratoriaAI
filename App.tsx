@@ -533,10 +533,8 @@ const App: React.FC = () => {
         {/* State: PROFILE */}
         {appState === AppState.PROFILE && user && (
           <ProfileView 
-             user={user}
-             onBack={resetApp}
-             language={language}
-             onLogout={handleLogout}
+            onClose={resetApp}
+            language={language}
           />
         )}
 
