@@ -120,7 +120,7 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, on
 
   // 🆕 VALIDACIONES DEFENSIVAS - Prevenir errores si faltan datos
   const fillerWords = result.fillerWords || [];
-  const emotionalTone = result.emotionalTone || [];
+  const emotionalTone = result.emotions || [];
   const improvementTips = result.improvementTips || [];
 
   // Data for charts
@@ -236,9 +236,9 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, on
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-400">{t.speed}</span>
-              <span className={`font-semibold ${getMetricColor(result.pacing?.status)}`}>
-                {result.pacing?.wpm || 0} WPM
-              </span>
+<span className={`font-semibold ${getMetricColor(result.vocalAnalysis?.toneVariety ?? '')}`}>
+  {result.vocalAnalysis?.toneVariety || 'N/A'}
+</span>
             </div>
             {result.pacing?.feedback && (
               <p className="text-sm text-gray-400 italic">"{result.pacing.feedback}"</p>
@@ -324,15 +324,15 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, on
                 <div className="space-y-4">
                   <div className="flex justify-between border-b border-yellow-500/20 pb-2">
                     <span className="text-gray-300">{t.premium.tone}</span>
-                    <span className={`font-semibold ${getMetricColor(result.vocalAnalysis.tone)}`}>
-                      {result.vocalAnalysis.tone || 'N/A'}
+                    <span className={`font-semibold ${getMetricColor(result.vocalAnalysis?.toneVariety ?? '')}`}>
+                      {result.vocalAnalysis?.toneVariety || 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between border-b border-yellow-500/20 pb-2">
                     <span className="text-gray-300">{t.premium.volume}</span>
-                    <span className={`font-semibold ${getMetricColor(result.vocalAnalysis.volume)}`}>
-                      {result.vocalAnalysis.volume || 'N/A'}
-                    </span>
+                    <span className={`font-semibold ${getMetricColor(result.vocalAnalysis?.volumeControl ?? '')}`}>
+  {result.vocalAnalysis?.volumeControl || 'N/A'}
+</span>
                   </div>
                   <div className="flex justify-between border-b border-yellow-500/20 pb-2">
                     <span className="text-gray-300">{t.premium.articulation}</span>
@@ -357,41 +357,41 @@ const ResultsView: React.FC<ResultsViewProps> = ({ result, onReset, language, on
                   <h3 className="text-xl font-bold text-yellow-100">{t.premium.imageTitle}</h3>
                 </div>
                 <div className="space-y-4">
-                  {result.imageAnalysis.attire && (
+                  {result.imageAnalysis?.attire && (
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-yellow-500/10 rounded-lg mt-1">
                         <Shirt className="w-4 h-4 text-yellow-400" />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs text-gray-400 mb-1">{t.premium.attire}</p>
-                        <p className="text-gray-300">{result.imageAnalysis.attire}</p>
+                        <p className="text-gray-300">{result.imageAnalysis?.attire}</p>
                       </div>
                     </div>
                   )}
-                  {result.imageAnalysis.hair && (
+                  {result.imageAnalysis?.hair && (
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-yellow-500/10 rounded-lg mt-1">
                         <Scissors className="w-4 h-4 text-yellow-400" />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs text-gray-400 mb-1">{t.premium.hair}</p>
-                        <p className="text-gray-300">{result.imageAnalysis.hair}</p>
+                        <p className="text-gray-300">{result.imageAnalysis?.hair}</p>
                       </div>
                     </div>
                   )}
-                  {result.imageAnalysis.face && (
+                  {result.imageAnalysis?.face && (
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-yellow-500/10 rounded-lg mt-1">
                         <User className="w-4 h-4 text-yellow-400" />
                       </div>
                       <div className="flex-1">
                         <p className="text-xs text-gray-400 mb-1">{t.premium.face}</p>
-                        <p className="text-gray-300">{result.imageAnalysis.face}</p>
+                        <p className="text-gray-300">{result.imageAnalysis?.face}</p>
                       </div>
                     </div>
                   )}
-                  {result.imageAnalysis.feedback && (
-                    <p className="text-sm text-gray-300 mt-4 italic">"{result.imageAnalysis.feedback}"</p>
+                  {result.imageAnalysis?.feedback && (
+                    <p className="text-sm text-gray-300 mt-4 italic">"{result.imageAnalysis?.feedback}"</p>
                   )}
                 </div>
               </div>

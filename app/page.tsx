@@ -597,7 +597,7 @@ const resetApp = () => {
                           setAppState(AppState.RECORDING);
                         }
                       }}
-                      disabled={user && analysisLimit !== null && !analysisLimit.canAnalyze}
+                      disabled={!!(user && analysisLimit !== null && !analysisLimit.canAnalyze)}
                       className={`group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 font-lg rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${
                         user && analysisLimit !== null && !analysisLimit.canAnalyze
                           ? 'bg-gray-600 cursor-not-allowed opacity-50'
@@ -899,21 +899,13 @@ const resetApp = () => {
           </div>
         )}
 
-        {/* State: PREMIUM */}
-        {appState === AppState.PREMIUM && (
-          <PremiumView 
-            onClose={resetApp} 
-            onSubscribeSuccess={handleSubscribeSuccess}
-            language={language}
-          />
-        )}
 
         {/* State: PRICING */}
         {appState === AppState.PRICING && (
-          <PricingView 
-            onClose={resetApp}
-            language={language}
-          />
+<PricingView
+  onBack={resetApp}
+  language={language}
+/>
         )}
 
         {/* State: HISTORY */}
@@ -931,11 +923,11 @@ const resetApp = () => {
 
         {/* State: LOGIN */}
         {appState === AppState.LOGIN && (
-          <LoginView 
-            onClose={resetApp}
-            onLoginSuccess={handleLoginSuccess}
-            language={language}
-          />
+<LoginView
+  onBack={resetApp}
+  onLoginSuccess={handleLoginSuccess}
+  language={language}
+/>
         )}
 
         {/* State: PROFILE */}

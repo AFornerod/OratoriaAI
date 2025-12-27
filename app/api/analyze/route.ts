@@ -198,17 +198,21 @@ export async function POST(request: NextRequest) {
     if (audience) console.log(`👥 Audience: ${audience}`);
     if (goal) console.log(`🎯 Goal: ${goal}`);
 
+ // 🆕 Determinar si el usuario es premium
+    const isPremium = tier === 'premium' || tier === 'pro' || tier === 'starter';
+
     // 6. ANALIZAR VIDEO CON GEMINI AI
     console.log('🤖 Calling Gemini API...');
     
-    const analysisResult = await analyzeVideo({
+    const analysisResult = await analyzeVideo(
       videoBase64,
       mimeType,
       language,
+      isPremium,
       topic,
       audience,
-      goal,
-    });
+      goal
+    );
 
     console.log('✅ Gemini analysis completed');
 

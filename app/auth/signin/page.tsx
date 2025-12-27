@@ -1,11 +1,12 @@
 'use client'
 
 import { signIn } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
-export default function SignInPage() {
+// Componente interno que usa useSearchParams
+function SignInForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -164,5 +165,23 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Componente de loading para Suspense
+function SignInLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-black flex items-center justify-center">
+      <div className="text-white">Cargando...</div>
+    </div>
+  );
+}
+
+// Export default envuelto en Suspense
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<SignInLoading />}>
+      <SignInForm />
+    </Suspense>
   );
 }
