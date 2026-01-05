@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, PRICE_IDS } from '@/lib/stripe';
 import { getServerSession } from 'next-auth';
 
 export async function POST(req: NextRequest) {
@@ -37,23 +36,23 @@ export async function POST(req: NextRequest) {
     // Crear sesión de Checkout
     console.log('🔍 Checkout - Creating session...');
     
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXTAUTH_URL}?checkout=success`,
-      cancel_url: `${process.env.NEXTAUTH_URL}?checkout=cancelled`,
-      customer_email: session.user.email,
-      metadata: {
-        userId: (session.user as any).id || session.user.email,
-        tier: tier,
-      },
-    });
+    // const checkoutSession = await stripe.checkout.sessions.create({
+    //  mode: 'subscription',
+    //  payment_method_types: ['card'],
+    //  line_items: [
+    //    {
+    //      price: priceId,
+    //      quantity: 1,
+    //    },
+    //  ],
+    //  success_url: `${process.env.NEXTAUTH_URL}?checkout=success`,
+    //  cancel_url: `${process.env.NEXTAUTH_URL}?checkout=cancelled`,
+    //  customer_email: session.user.email,
+    //  metadata: {
+    //    userId: (session.user as any).id || session.user.email,
+    //    tier: tier,
+    //  },
+    // });
 
     console.log('🔍 Checkout - Session created:', checkoutSession.id);
 
