@@ -1,7 +1,8 @@
 // app/api/paypal/verify-subscription/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getPayPalAccessToken, type PayPalSubscription } from '@/lib/paypal';
+import { supabaseAdmin } from '@/lib/supabase/server';
+import { getPayPalAccessToken } from '@/lib/paypal';
+import type { PayPalSubscription } from '@/lib/paypal';
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     // Verificar que la suscripción esté activa
     if (subscription.status === 'ACTIVE') {
-      const supabase = createClient();
+      const supabase = supabaseAdmin;
       const userId = subscription.custom_id;
 
       if (!userId) {
