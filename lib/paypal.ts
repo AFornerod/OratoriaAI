@@ -37,20 +37,23 @@ export async function getPayPalAccessToken(): Promise<string> {
  * Mapea los planes de OratoriaAI a los Plan IDs de PayPal
  */
 export function getPayPalPlanId(planId: string): string | null {
-  const planMapping: Record<string, string> = {
-    basic: process.env.PAYPAL_PLAN_BASIC!,
-    professional: process.env.PAYPAL_PLAN_PROFESSIONAL!,
-    enterprise: process.env.PAYPAL_PLAN_ENTERPRISE!,
+  console.log('🔍 getPayPalPlanId called with:', planId);
+  console.log('📋 Available plan IDs:', {
+    basic: process.env.PAYPAL_PLAN_BASIC,
+    professional: process.env.PAYPAL_PLAN_PROFESSIONAL,
+    enterprise: process.env.PAYPAL_PLAN_ENTERPRISE,
+  });
+
+  const planMapping: Record<string, string | undefined> = {
+    basic: process.env.PAYPAL_PLAN_BASIC,
+    professional: process.env.PAYPAL_PLAN_PROFESSIONAL,
+    enterprise: process.env.PAYPAL_PLAN_ENTERPRISE,
   };
 
-  return planMapping[planId] || null;
-}
-
-/**
- * Obtiene el modo actual de PayPal
- */
-export function getPayPalMode(): 'sandbox' | 'live' {
-  return (process.env.PAYPAL_MODE as 'sandbox' | 'live') || 'sandbox';
+  const paypalPlanId = planMapping[planId];
+  console.log('✅ Mapped to PayPal Plan ID:', paypalPlanId);
+  
+  return paypalPlanId || null;
 }
 
 /**

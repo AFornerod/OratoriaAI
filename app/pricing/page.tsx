@@ -1,11 +1,24 @@
 'use client';
 
+import { SessionProvider } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import PricingView from '@/components/PricingView';
 import { Language } from '@/types';
 
-export default function PricingPage() {
+function PricingContent() {
   const router = useRouter();
+  const [language, setLanguage] = useState<Language>('es');
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem('language') as Language;
+    if (storedLanguage) {
+      setLanguage(storedLanguage);
+    } else {
+      const browserLang = navigator.language.startsWith('es') ? 'es' : 'en';
+      setLanguage(browserLang as Language);
+    }
+  }, []);
 
   const handleBack = () => {
     router.push('/');
@@ -14,7 +27,15 @@ export default function PricingPage() {
   return (
     <PricingView 
       onBack={handleBack}
-      language="es" // o "en" dependiendo del idioma del usuario
+      language={language}
     />
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <SessionProvider>
+      <PricingContent />
+    </SessionProvider>
   );
 }

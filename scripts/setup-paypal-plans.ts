@@ -1,18 +1,15 @@
-// scripts/setup-paypal-plans.ts
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import path from 'path';
 
-// Cargar variables de entorno desde .env.local
-config({ path: resolve(process.cwd(), '.env.local') });
+config({ path: path.resolve(process.cwd(), '.env.local') });
 
-const PAYPAL_API = process.env.PAYPAL_API_URL || 'https://api-m.sandbox.paypal.com';
-const CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-const SECRET = process.env.PAYPAL_CLIENT_SECRET;
+async function getPayPalAccessToken(): Promise<string> {
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
 
-async function getAccessToken() {
-  const auth = Buffer.from(`${CLIENT_ID}:${SECRET}`).toString('base64');
-  
-  const response = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
+  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+  const response = await fetch('https://api-m.paypal.com/v1/oauth2/token', {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${auth}`,
@@ -21,18 +18,17 @@ async function getAccessToken() {
     body: 'grant_type=client_credentials',
   });
 
-  const data = await response.json();
-  
   if (!response.ok) {
-    console.error('❌ Error getting access token:', data);
-    throw new Error('Failed to get access token');
+    const error = await response.json();
+    throw new Error(`Failed to get access token: ${JSON.stringify(error)}`);
   }
-  
+
+  const data = await response.json();
   return data.access_token;
 }
 
 async function createProduct(accessToken: string) {
-  const response = await fetch(`${PAYPAL_API}/v1/catalogs/products`, {
+  const response = await fetch('https://api-m.paypal.com/v1/catalogs/products', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -46,29 +42,33 @@ async function createProduct(accessToken: string) {
     }),
   });
 
-  const product = await response.json();
-  
   if (!response.ok) {
-    console.error('❌ Error creating product:', product);
-    throw new Error('Failed to create product');
+    const error = await response.json();
+    throw new Error(`Failed to create product: ${JSON.stringify(error)}`);
   }
 
+  const product = await response.json();
   console.log('✅ Product created:', product.id);
   return product.id;
 }
 
-async function createPlan(accessToken: string, productId: string, planName: string, amount: string) {
-  const response = await fetch(`${PAYPAL_API}/v1/billing/plans`, {
+async function createBillingPlan(
+  accessToken: string,
+  productId: string,
+  planName: string,
+  price: string
+) {
+  const response = await fetch('https://api-m.paypal.com/v1/billing/plans', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
     },
     body: JSON.stringify({
       product_id: productId,
       name: `OratoriaAI - ${planName}`,
-      description: `${planName} plan for OratoriaAI - $${amount}/month`,
-      status: 'ACTIVE',
+      description: `${planName} subscription plan`,
       billing_cycles: [
         {
           frequency: {
@@ -80,7 +80,7 @@ async function createPlan(accessToken: string, productId: string, planName: stri
           total_cycles: 0,
           pricing_scheme: {
             fixed_price: {
-              value: amount,
+              value: price,
               currency_code: 'USD',
             },
           },
@@ -88,72 +88,66 @@ async function createPlan(accessToken: string, productId: string, planName: stri
       ],
       payment_preferences: {
         auto_bill_outstanding: true,
+        setup_fee: {
+          value: '0',
+          currency_code: 'USD',
+        },
         setup_fee_failure_action: 'CONTINUE',
         payment_failure_threshold: 3,
       },
     }),
   });
 
-  const plan = await response.json();
-  
   if (!response.ok) {
-    console.error(`❌ Error creating ${planName} plan:`, plan);
-    throw new Error(`Failed to create ${planName} plan`);
+    const error = await response.json();
+    throw new Error(`Failed to create plan: ${JSON.stringify(error)}`);
   }
 
-  console.log(`✅ Plan ${planName} created:`, plan.id);
-  return plan.id;
+  const plan = await response.json();
+  return plan;
 }
 
-async function main() {
+async function setupPayPalPlansLive() {
+  console.log('\n🚀 Setting up PayPal LIVE Plans...\n');
+  console.log('⚠️  WARNING: This will create REAL billing plans!\n');
+
   try {
-    console.log('🚀 Setting up PayPal plans...\n');
-    
-    // Verificar credenciales
-    if (!CLIENT_ID || !SECRET) {
-      console.error('❌ Missing PayPal credentials!');
-      console.error('   Make sure these are set in .env.local:');
-      console.error('   - NEXT_PUBLIC_PAYPAL_CLIENT_ID');
-      console.error('   - PAYPAL_CLIENT_SECRET\n');
-      console.error('   Current values:');
-      console.error(`   CLIENT_ID: ${CLIENT_ID ? 'SET ✓' : 'MISSING ✗'}`);
-      console.error(`   SECRET: ${SECRET ? 'SET ✓' : 'MISSING ✗'}`);
-      process.exit(1);
-    }
-    
-    console.log('📋 Configuration:');
-    console.log(`   API: ${PAYPAL_API}`);
-    console.log(`   Client ID: ${CLIENT_ID.substring(0, 20)}...`);
-    console.log(`   Secret: ${SECRET.substring(0, 20)}...\n`);
-    
-    console.log('⏳ Getting access token...');
-    const accessToken = await getAccessToken();
+    console.log('🔑 Getting access token...');
+    const accessToken = await getPayPalAccessToken();
     console.log('✅ Access token obtained\n');
-    
-    console.log('⏳ Creating product...');
+
+    console.log('📦 Creating product...');
     const productId = await createProduct(accessToken);
     console.log('');
-    
-    console.log('⏳ Creating subscription plans...');
-    const basicPlanId = await createPlan(accessToken, productId, 'Basic', '9.99');
-    const proPlanId = await createPlan(accessToken, productId, 'Professional', '29.99');
-    const enterprisePlanId = await createPlan(accessToken, productId, 'Enterprise', '99.99');
-    
-    console.log('\n✅ All plans created successfully!\n');
-    console.log('📝 Add these to your .env.local:\n');
-    console.log('# PayPal Plan IDs');
-    console.log(`PAYPAL_PLAN_BASIC=${basicPlanId}`);
-    console.log(`PAYPAL_PLAN_PROFESSIONAL=${proPlanId}`);
-    console.log(`PAYPAL_PLAN_ENTERPRISE=${enterprisePlanId}`);
-    console.log('');
-    
-  } catch (error: any) {
-    console.error('\n❌ Setup failed:', error.message);
-    if (error.cause) {
-      console.error('   Cause:', error.cause);
+
+    const plans = [
+      { name: 'Basic', price: '9.99' },
+      { name: 'Professional', price: '29.99' },
+      { name: 'Enterprise', price: '99.99' },
+    ];
+
+    const planIds: Record<string, string> = {};
+
+    for (const { name, price } of plans) {
+      console.log(`📋 Creating ${name} plan ($${price}/month)...`);
+      const plan = await createBillingPlan(accessToken, productId, name, price);
+      planIds[name.toUpperCase()] = plan.id;
+      console.log(`✅ ${name} Plan ID: ${plan.id}\n`);
     }
+
+    console.log('\n🎉 All plans created!\n');
+    console.log('═'.repeat(80));
+    console.log('\n📝 Add these to your .env.local:\n');
+    console.log('═'.repeat(80));
+    console.log(`PAYPAL_PLAN_BASIC=${planIds.BASIC}`);
+    console.log(`PAYPAL_PLAN_PROFESSIONAL=${planIds.PROFESSIONAL}`);
+    console.log(`PAYPAL_PLAN_ENTERPRISE=${planIds.ENTERPRISE}`);
+    console.log('═'.repeat(80));
+
+  } catch (error: any) {
+    console.error('💥 Error:', error.message);
     process.exit(1);
   }
 }
 
-main();
+setupPayPalPlansLive();
