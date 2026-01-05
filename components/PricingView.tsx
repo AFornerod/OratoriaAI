@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { ArrowLeft, Check, Crown, Zap, Rocket } from 'lucide-react';
+import { ArrowLeft, Check, Crown, Zap, Rocket, Building2 } from 'lucide-react';
 import { Language } from '@/types';
 import { useAuth } from '@/lib/hooks/useAuth';
 
@@ -22,6 +21,9 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
       monthly: "/ mes",
       currentPlan: "Plan Actual",
       upgrade: "Mejorar Plan",
+      getStarted: "Comenzar",
+      signInFirst: "Inicia Sesión",
+      processing: "Procesando...",
       features: "Características",
       free: {
         name: "Gratis",
@@ -33,41 +35,44 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
           "Reporte de resultados"
         ]
       },
-      starter: {
-        name: "Starter",
+      basic: {
+        name: "Basic",
         price: "$9.99",
         features: [
-          "5 análisis por mes",
-          "Videos de hasta 15 minutos",
-          "Análisis avanzado",
+          "10 análisis por mes",
+          "Videos de hasta 5 minutos",
+          "Análisis avanzado de IA",
           "Guardar historial",
-          "Reporte detallado"
+          "Reporte detallado",
+          "Métricas de progreso"
         ]
       },
-      pro: {
-        name: "Pro",
-        price: "$14.99",
+      professional: {
+        name: "Professional",
+        price: "$29.99",
         features: [
-          "10 análisis por mes",
-          "Videos de hasta 30 minutos",
-          "Análisis profesional",
+          "50 análisis por mes",
+          "Videos de hasta 15 minutos",
+          "Análisis profesional completo",
           "Historial ilimitado",
-          "Métricas avanzadas",
+          "Métricas avanzadas de IA",
+          "Coaching personalizado",
           "Soporte prioritario"
         ],
         popular: true
       },
-      premium: {
-        name: "Premium",
-        price: "$49.99",
+      enterprise: {
+        name: "Enterprise",
+        price: "$99.99",
         features: [
           "Análisis ilimitados",
-          "Videos de hasta 60 minutos",
-          "IA personalizada",
-          "Exportar reportes",
-          "Coaching personalizado",
-          "API Access",
-          "Soporte 24/7"
+          "Videos de hasta 30 minutos",
+          "IA personalizada premium",
+          "Exportar reportes PDF",
+          "Coaching 1 a 1",
+          "API Access completo",
+          "Soporte 24/7 dedicado",
+          "Integración con equipos"
         ]
       }
     },
@@ -77,52 +82,58 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
       monthly: "/ month",
       currentPlan: "Current Plan",
       upgrade: "Upgrade",
+      getStarted: "Get Started",
+      signInFirst: "Sign In First",
+      processing: "Processing...",
       features: "Features",
       free: {
         name: "Free",
         price: "$0",
         features: [
-          "3 analysis per month",
+          "3 analyses per month",
           "Videos up to 1 minute",
           "Basic speech analysis",
           "Results report"
         ]
       },
-      starter: {
-        name: "Starter",
+      basic: {
+        name: "Basic",
         price: "$9.99",
         features: [
-          "5 analyses per month",
-          "Videos up to 15 minutes",
-          "Advanced analysis",
+          "10 analyses per month",
+          "Videos up to 5 minutes",
+          "Advanced AI analysis",
           "Save history",
-          "Detailed report"
+          "Detailed report",
+          "Progress metrics"
         ]
       },
-      pro: {
-        name: "Pro",
-        price: "$14.99",
+      professional: {
+        name: "Professional",
+        price: "$29.99",
         features: [
-          "10 analyses per month",
-          "Videos up to 30 minutes",
-          "Professional analysis",
+          "50 analyses per month",
+          "Videos up to 15 minutes",
+          "Complete professional analysis",
           "Unlimited history",
-          "Advanced metrics",
+          "Advanced AI metrics",
+          "Personalized coaching",
           "Priority support"
         ],
         popular: true
       },
-      premium: {
-        name: "Premium",
-        price: "$49.99",
+      enterprise: {
+        name: "Enterprise",
+        price: "$99.99",
         features: [
           "Unlimited analyses",
-          "Videos up to 60 minutes",
-          "Personalized AI",
-          "Export reports",
-          "Personal coaching",
-          "API Access",
-          "24/7 support"
+          "Videos up to 30 minutes",
+          "Premium personalized AI",
+          "Export PDF reports",
+          "1-on-1 coaching",
+          "Full API Access",
+          "24/7 dedicated support",
+          "Team integration"
         ]
       }
     }
@@ -136,74 +147,73 @@ const PricingView: React.FC<PricingViewProps> = ({ onBack, language }) => {
       ...t.free
     },
     {
-      id: 'starter',
+      id: 'basic',
       icon: Rocket,
       gradient: 'from-blue-600 to-cyan-600',
-      ...t.starter
+      ...t.basic
     },
     {
-      id: 'pro',
+      id: 'professional',
       icon: Crown,
       gradient: 'from-purple-600 to-indigo-600',
-      ...t.pro
+      ...t.professional
     },
     {
-      id: 'premium',
-      icon: Crown,
+      id: 'enterprise',
+      icon: Building2,
       gradient: 'from-pink-600 to-purple-600',
-      ...t.premium
+      ...t.enterprise
     }
   ];
 
-  const handleUpgrade = async (tier: string) => {
-    if (tier === 'free') return;
+  const handleUpgrade = async (planId: string) => {
+    if (planId === 'free') return;
     
     console.log('🔍 DEBUG - User:', user);
-    console.log('🔍 DEBUG - Tier selected:', tier);
+    console.log('🔍 DEBUG - Plan selected:', planId);
     
-    // Si no está autenticado, redirigir a login
-if (!user) {
-  console.log('🔍 DEBUG - No user, redirecting to login');
-  sessionStorage.setItem('selectedTier', tier);
-  // Redirect manual a la página de signin de NextAuth
-  window.location.href = '/api/auth/signin?callbackUrl=' + encodeURIComponent('/');
-  return;
-}
+    // Si no está autenticado, guardar plan y redirigir a login
+    if (!user) {
+      console.log('🔍 DEBUG - No user, redirecting to login');
+      sessionStorage.setItem('selectedPlan', planId);
+      window.location.href = '/api/auth/signin?callbackUrl=' + encodeURIComponent('/');
+      return;
+    }
     
-    console.log('🔍 DEBUG - User authenticated, proceeding to checkout');
-    setLoading(tier);
+    console.log('🔍 DEBUG - User authenticated, creating PayPal subscription');
+    setLoading(planId);
     
     try {
-      const response = await fetch('/api/checkout', {
+      // Crear suscripción en PayPal
+      const response = await fetch('/api/paypal/create-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ 
+          planId,
+          userId: user.id 
+        }),
       });
 
       const data = await response.json();
 
-      if (response.status === 401) {
-        alert(language === 'es' 
-          ? 'Debes iniciar sesión primero' 
-          : 'You must sign in first'
-        );
-        signIn(undefined, { callbackUrl: '/' });
-        return;
+      if (!response.ok) {
+        throw new Error(data.error || 'Error creating subscription');
       }
 
-      if (data.url) {
-        console.log('🔍 DEBUG - Redirecting to Stripe:', data.url);
-        window.location.href = data.url;
+      if (data.approvalUrl) {
+        console.log('🔍 DEBUG - Redirecting to PayPal:', data.approvalUrl);
+        // Redirigir a PayPal para aprobar la suscripción
+        window.location.href = data.approvalUrl;
       } else {
-        throw new Error('No checkout URL received');
+        throw new Error('No approval URL received');
       }
     } catch (error) {
-      console.error('Checkout error:', error);
+      console.error('PayPal subscription error:', error);
       alert(language === 'es'
-        ? 'Error al procesar el pago. Por favor intenta de nuevo.'
-        : 'Error processing payment. Please try again.'
+        ? 'Error al procesar la suscripción. Por favor intenta de nuevo.'
+        : 'Error processing subscription. Please try again.'
       );
       setLoading(null);
     }
@@ -283,27 +293,51 @@ if (!user) {
                     {t.currentPlan}
                   </button>
                 ) : (
-<button
-  onClick={() => {
-    console.log('🔴 BUTTON CLICKED - Plan:', plan.id);
-    handleUpgrade(plan.id);
-  }}
-  disabled={loading === plan.id}
-  className={`w-full py-3 bg-gradient-to-r ${plan.gradient} hover:opacity-90 text-white font-semibold rounded-lg transition-all ${
-    loading === plan.id ? 'opacity-50 cursor-wait' : ''
-  }`}
->
-                    {loading === plan.id 
-                      ? (language === 'es' ? 'Procesando...' : 'Processing...') 
-                      : !user 
-                        ? (language === 'es' ? 'Comenzar' : 'Get Started')
-                        : t.upgrade
-                    }
+                  <button
+                    onClick={() => {
+                      console.log('🔴 BUTTON CLICKED - Plan:', plan.id);
+                      handleUpgrade(plan.id);
+                    }}
+                    disabled={loading === plan.id}
+                    className={`w-full py-3 bg-gradient-to-r ${plan.gradient} hover:opacity-90 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
+                      loading === plan.id ? 'opacity-50 cursor-wait' : ''
+                    }`}
+                  >
+                    {loading === plan.id ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {t.processing}
+                      </>
+                    ) : !user ? (
+                      <>
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.116c-.247-.039-.505-.059-.78-.059h-2.797c-.247 0-.45.143-.527.352l-.891 5.646c-.058.37.213.688.586.688h1.043c2.163 0 3.779-.624 4.817-1.857.757-.897 1.13-2.08 1.181-3.739.014-.428-.024-.84-.025-.915z"/>
+                        </svg>
+                        {t.getStarted}
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.116c-.247-.039-.505-.059-.78-.059h-2.797c-.247 0-.45.143-.527.352l-.891 5.646c-.058.37.213.688.586.688h1.043c2.163 0 3.779-.624 4.817-1.857.757-.897 1.13-2.08 1.181-3.739.014-.428-.024-.84-.025-.915z"/>
+                        </svg>
+                        {t.upgrade}
+                      </>
+                    )}
                   </button>
                 )}
               </div>
             );
           })}
+        </div>
+
+        {/* Nota sobre PayPal */}
+        <div className="mt-12 text-center">
+          <p className="text-gray-400 text-sm">
+            {language === 'es' 
+              ? '🔒 Pagos seguros procesados por PayPal' 
+              : '🔒 Secure payments processed by PayPal'
+            }
+          </p>
         </div>
       </div>
     </div>
